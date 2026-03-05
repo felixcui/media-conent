@@ -20,8 +20,9 @@ from typing import Optional, Dict, Any, List
 import requests
 from dotenv import load_dotenv
 
-# 加载环境变量
-load_dotenv()
+# 加载 skill 目录（scripts/ 的父目录）下的 .env 文件
+_SKILL_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=_SKILL_DIR / ".env")
 
 
 class WeChatAPIError(Exception):

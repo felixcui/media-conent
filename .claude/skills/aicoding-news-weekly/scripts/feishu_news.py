@@ -325,6 +325,8 @@ if __name__ == "__main__":
             for item in items:
                 grouped_items[item['category']].append(item)
 
+      
+
             # Define preferred order of categories
             preferred_order = ["编程实践", "工具动态", "行业观点"]
             
@@ -356,8 +358,11 @@ if __name__ == "__main__":
 
             print('---')
             print('![](https://files.mdnice.com/user/121853/1b369e9c-c1fa-490b-a10e-a9eb803177cf.png)')
-            print('- AICoding 基地: devmaster.cn')
+            print('- [AICoding 基地: devmaster.cn (工具动态，编程实践，编程模型，业界观点)')
             print('- 专为开发者打造的一站式 AI 编程情报站。这里汇聚了最前沿的 AI 编程工具、编程资讯和模型动态及深度实战案例等，旨在帮助每一位开发者跨越技术周期，掌握 AI开发核心生产力，提升开发效率。')
             
+            # 输出标题，格式: AI Coding资讯周报-2026.02.07
+            formatted_end_date = end_date.replace('-', '.')
+            #print(f"AI Coding资讯周报-{formatted_end_date}\n")
     else:
         print(f"Error: {result['msg']}") 

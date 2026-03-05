@@ -1,0 +1,29 @@
+# OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+
+# Environment variables
+.env
+
+# Logs and databases
+*.log
+
+# Temp
+tmp/
