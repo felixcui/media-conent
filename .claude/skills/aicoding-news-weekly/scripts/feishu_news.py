@@ -1,15 +1,24 @@
 import os
 import json
 import argparse
+from pathlib import Path
 from datetime import datetime, timedelta
 import requests
 from typing import Dict, List, Optional
 from collections import defaultdict
 
+# 自动加载 skill 目录下的 .env 文件
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).parent.parent / ".env"
+    load_dotenv(_env_path)
+except ImportError:
+    pass  # python-dotenv 未安装时，依赖系统环境变量
+
 # Feishu Configuration
 FEISHU_CONFIG = {
-    "APP_ID": os.getenv("FEISHU_APP_ID", "cli_a7cf81a5d318500b"),
-    "APP_SECRET": os.getenv("FEISHU_APP_SECRET", "pbvES8Ks3AkQELrsNbqzMb8CZzktIXow"),
+    "APP_ID": os.getenv("FEISHU_APP_ID"),
+    "APP_SECRET": os.getenv("FEISHU_APP_SECRET"),
     "NEWS": {
         "APP_TOKEN": "Tn1vbRQyraNFvAstbqicUlIJnue",
         "TABLE_ID": "tblXp6DHjQPomXbv",
@@ -23,8 +32,51 @@ FEISHU_CONFIG = {
     }
 }
 
+class FeishuConfigError(Exception):
+    """飞书凭证配置错误"""
+    pass
+
+def check_feishu_config():
+    """检查飞书凭证是否已配置"""
+    if not FEISHU_CONFIG["APP_ID"] or not FEISHU_CONFIG["APP_SECRET"]:
+        skill_dir = Path(__file__).parent.parent
+        env_path = skill_dir / ".env"
+        raise FeishuConfigError(f"""❌ 飞书 API 凭证未配置！
+
+请提供以下凭证：
+  • FEISHU_APP_ID: 飞书应用的 App ID
+  • FEISHU_APP_SECRET: 飞书应用的 App Secret
+
+凭证将保存到: {env_path}
+
+请回复凭证信息，格式如下：
+  APP_ID=cli_xxxxxxxxxxxx
+  APP_SECRET=xxxxxxxxxxxxxxxx""")
+
+class FeishuConfigError(Exception):
+    """飞书凭证配置错误"""
+    pass
+
+def check_feishu_config():
+    """检查飞书凭证是否已配置"""
+    if not FEISHU_CONFIG["APP_ID"] or not FEISHU_CONFIG["APP_SECRET"]:
+        skill_dir = Path(__file__).parent.parent
+        env_path = skill_dir / ".env"
+        raise FeishuConfigError(f"""❌ 飞书 API 凭证未配置！
+
+请提供以下凭证：
+  • FEISHU_APP_ID: 飞书应用的 App ID
+  • FEISHU_APP_SECRET: 飞书应用的 App Secret
+
+凭证将保存到: {env_path}
+
+请回复凭证信息，格式如下：
+  APP_ID=cli_xxxxxxxxxxxx
+  APP_SECRET=xxxxxxxxxxxxxxxx""")
+
 def get_tenant_access_token() -> str:
     """获取飞书访问令牌"""
+    check_feishu_config()  # 检查凭证配置
     url = f"{FEISHU_CONFIG['API']['BASE_URL']}{FEISHU_CONFIG['API']['AUTH_TOKEN']}"
     payload = {
         "app_id": FEISHU_CONFIG["APP_ID"],
