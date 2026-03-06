@@ -358,12 +358,12 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
     lines = []
     
     # 标题
-    lines.append("## 📰 AI 资讯汇总")
+    lines.append("## AI 资讯汇总")
     lines.append("")
     
     # 日期和统计信息（使用引用块）
-    lines.append(f"> 📅 `{start_date.strftime('%Y-%m-%d')}` - `{end_date.strftime('%Y-%m-%d')}`")
-    lines.append(f"> 📊 共 **{len(news_list)}** 条资讯")
+    lines.append(f"> `{start_date.strftime('%Y-%m-%d')}` - `{end_date.strftime('%Y-%m-%d')}`")
+    lines.append(f"> 共 **{len(news_list)}** 条资讯")
     lines.append("")
     
     # 计算AI相关资讯数量
@@ -390,10 +390,9 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
             
         category_number += 1
         indices = categories[category]
-        icon = CATEGORY_ICONS.get(category, "🤖")
         
-        # 分类标题（使用 ### 层级）
-        lines.append(f"### {icon} {category}（{len(indices)} 条）")
+        # 分类标题（使用 ### 层级，不带 emoji）
+        lines.append(f"### {category}（{len(indices)} 条）")
         lines.append("")
         
         # 资讯列表（带编号）
