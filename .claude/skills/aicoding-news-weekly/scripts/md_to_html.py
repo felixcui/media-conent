@@ -374,17 +374,74 @@ class MarkdownToWechat:
     def get_content_only(self, markdown_text: str) -> str:
         """仅转换 Markdown 内容，不包含完整 HTML 结构
 
-        用于 API 发布，只返回 body 内容（不含 html/head/body 标签）
+        用于 API 发布，只返回 body 内容（不含 html/head/body 标签）。
+        微信公众号不支持 <style> 块，因此将主要样式内联到各标签的 style 属性。
 
         Args:
             markdown_text: Markdown 文本
 
         Returns:
-            转换后的 HTML 内容
+            转换后的带内联样式的 HTML 内容
         """
         html_content = self.md.convert(markdown_text)
         self.md.reset()
+        # 将 CSS 样式内联，使公众号显示效果与本地预览一致
+        html_content = self._apply_inline_styles(html_content)
         return html_content
+
+    def _apply_inline_styles(self, html: str) -> str:
+        """将主要 CSS 规则内联到对应 HTML 标签的 style 属性
+
+        微信公众号会剥离 <style> 标签，所有样式须通过内联 style="" 属性传递。
+        样式与 WECHAT_CSS 中的定义保持一致。
+        """
+        # 各标签对应的内联样式（与 WECHAT_CSS 保持一致）
+        TAG_STYLES = {
+            'h2': (
+                'font-size:19px;font-weight:bold;color:#000;'
+                'margin:20px 0 10px;padding-left:8px;border-left:3px solid #3f51b5;'
+            ),
+            'h3': 'font-size:17px;font-weight:bold;color:#333;margin:16px 0 8px;',
+            'h4': 'font-size:15px;font-weight:bold;color:#555;margin:14px 0 6px;',
+            'p':  'margin:10px 0;text-align:justify;word-wrap:break-word;',
+            'a':  'color:#3f51b5;text-decoration:none;',
+            'ul': 'margin:10px 0;padding-left:30px;',
+            'ol': 'margin:10px 0;padding-left:30px;',
+            'li': 'margin:5px 0;line-height:1.8;',
+            'blockquote': (
+                'margin:15px 0;padding:15px 20px;'
+                'border-left:4px solid #42a5f5;background-color:#e3f2fd;'
+                'color:#555;border-radius:4px;'
+            ),
+            'strong': 'font-weight:bold;color:#000;',
+            'em':     'font-style:italic;color:#555;',
+            'img': (
+                'max-width:100%;height:auto;'
+                'display:block;margin:15px auto;border-radius:4px;'
+            ),
+            'hr': 'margin:25px 0;border:none;border-top:2px solid #e0e0e0;',
+        }
+
+        for tag, style in TAG_STYLES.items():
+            def _replacer(m, _style=style):
+                """在开标签中追加 style 属性"""
+                full = m.group(0)
+                # 如果标签内已有 style 属性，追加；否则新增
+                existing = re.search(r'\bstyle="([^"]*)"', full)
+                if existing:
+                    merged = existing.group(1).rstrip(';') + ';' + _style
+                    return full[:existing.start(1)] + merged + full[existing.end(1):]
+                # 在 > 或 /> 前插入
+                return re.sub(r'(\s*/?>\s*)$', f' style="{_style}"\\1', full, count=1)
+
+            html = re.sub(
+                rf'<{tag}(?:\s[^>]*)?>',
+                _replacer,
+                html,
+                flags=re.IGNORECASE,
+            )
+
+        return html
 
 
 def save_html(html: str, output_file: str):
