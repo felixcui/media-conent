@@ -252,7 +252,8 @@ def generate_weekly_report(
     output_dir: str = None,
     publish: bool = False,
     preview: bool = False,
-    weixin: bool = False
+    weixin: bool = False,
+    include_other: bool = False
 ) -> str:
     """
     生成周报
@@ -287,6 +288,8 @@ def generate_weekly_report(
     # 调用 feishu_news.py 生成周报
     feishu_script = os.path.join(SCRIPT_DIR, "feishu_news.py")
     cmd = [sys.executable, feishu_script, "--start", start_date, "--end", end_date]
+    if include_other:
+        cmd.append("--include-other")
 
     print(f"正在生成周报 ({start_date} 至 {end_date})...")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -342,6 +345,8 @@ def main():
     parser.add_argument('--publish', action='store_true', help='生成后调用公众号发布工具（HTML 转换）')
     parser.add_argument('--preview', action='store_true', help='生成公众号预览网页')
     parser.add_argument('--weixin', action='store_true', help='生成后直接发布到公众号 API（创建草稿）')
+    parser.add_argument('--include-other', action='store_true', dest='include_other',
+                        help='包含分类为"其他"的资讯（默认过滤掉）')
 
     args = parser.parse_args()
 
@@ -364,7 +369,8 @@ def main():
         output_dir=args.output_dir,
         publish=args.publish,
         preview=args.preview,
-        weixin=args.weixin
+        weixin=args.weixin,
+        include_other=args.include_other
     )
 
     if not result:

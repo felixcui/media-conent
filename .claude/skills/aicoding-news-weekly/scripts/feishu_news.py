@@ -88,8 +88,12 @@ def get_tenant_access_token() -> str:
     return response.json()["tenant_access_token"]
 
 def build_bitable_url(app_token: str, table_id: str) -> str:
-    """构建飞书 API URL"""
+    """构建飞书列表记录 API URL"""
     return f"{FEISHU_CONFIG['API']['BASE_URL']}{FEISHU_CONFIG['API']['BITABLE']}/apps/{app_token}/tables/{table_id}/records"
+
+def build_bitable_search_url(app_token: str, table_id: str) -> str:
+    """构建飞书查询记录（search）API URL，支持服务端 filter"""
+    return f"{FEISHU_CONFIG['API']['BASE_URL']}{FEISHU_CONFIG['API']['BITABLE']}/apps/{app_token}/tables/{table_id}/records/search"
 
 def get_field_text(fields: List[Dict]) -> str:
     """将飞书字段数组转换为纯文本"""
@@ -132,12 +136,13 @@ def format_date(date_str: str) -> str:
     except:
         return date_str
 
-def get_news_list(start_date: str = None, end_date: str = None, debug: bool = False) -> Dict:
+def get_news_list(start_date: str = None, end_date: str = None, debug: bool = False, exclude_other: bool = True) -> Dict:
     """获取资讯列表
     Args:
         start_date: 开始日期 (YYYY-MM-DD)，默认为7天前
         end_date: 结束日期 (YYYY-MM-DD)，默认为今天
         debug: 是否输出调试信息
+        exclude_other: 是否过滤掉分类为"其他"的资讯，默认为 True
     """
     try:
         # 确定日期范围
@@ -150,8 +155,8 @@ def get_news_list(start_date: str = None, end_date: str = None, debug: bool = Fa
         # 获取访问令牌
         token = get_tenant_access_token()
         
-        # 构建API URL
-        url = build_bitable_url(
+        # 构建查询 API URL（POST /records/search，支持服务端 filter）
+        url = build_bitable_search_url(
             FEISHU_CONFIG["NEWS"]["APP_TOKEN"],
             FEISHU_CONFIG["NEWS"]["TABLE_ID"]
         )
@@ -170,16 +175,38 @@ def get_news_list(start_date: str = None, end_date: str = None, debug: bool = Fa
         max_pages = 20  # 最大页数限制，防止无限循环
         
         while page_count < max_pages:
-            # 使用 GET 方式的 records 接口，分页更可靠
-            params = {
+            # 使用 POST /records/search 接口，支持服务端 filter
+            # 注意：使用 filter 时 view_id 会被忽略，改用 sort 维持倒序排列
+            body = {
                 "page_size": 500,
-                "view_id": FEISHU_CONFIG["NEWS"]["VIEW_ID"],
+                "sort": [
+                    {
+                        "field_name": "updatetime",
+                        "desc": True
+                    }
+                ]
             }
+
+            # 服务端过滤：排除分类为"其他"的资讯
+            if exclude_other:
+                body["filter"] = {
+                    "conjunction": "and",
+                    "conditions": [
+                        {
+                            "field_name": "category",
+                            "operator": "isNot",
+                            "value": ["其他"]
+                        }
+                    ]
+                }
             
+            if debug:
+                print(f"[DEBUG] exclude_other={exclude_other}, filter={'已启用' if exclude_other else '已禁用'}", file=__import__('sys').stderr)
+
             if page_token:
-                params["page_token"] = page_token
-            
-            response = requests.get(url, headers=headers, params=params)
+                body["page_token"] = page_token
+
+            response = requests.post(url, headers=headers, json=body)
             response.raise_for_status()
             feishu_data = response.json()
             
@@ -359,10 +386,16 @@ if __name__ == "__main__":
     parser.add_argument('--start', type=str, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, help='End date (YYYY-MM-DD)')
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
+    parser.add_argument('--include-other', action='store_true', help='包含分类为"其他"的资讯（默认过滤掉）')
     args = parser.parse_args()
 
     # 获取并打印资讯列表
-    result = get_news_list(start_date=args.start, end_date=args.end, debug=args.debug)
+    result = get_news_list(
+        start_date=args.start,
+        end_date=args.end,
+        debug=args.debug,
+        exclude_other=not args.include_other
+    )
     
     if result["code"] == 0:
         items = result["data"]["items"]
