@@ -37,17 +37,75 @@ mkdir -p "$OUTPUT_DIR"
 
 ### 步骤 1：保存公众号文章
 
-使用 `wechat-url-to-markdown` skill 抓取并保存文章内容到输出目录：
+使用 `baoyu-url-to-markdown` skill 抓取并保存文章内容。
+
+#### 1.1 确定运行时和脚本路径
 
 ```bash
-python <wechat-url-to-markdown skill 路径>/scripts/save_wechat.py "$ARTICLE_URL" -o "$OUTPUT_DIR"
+# 确定 bun 运行时
+if command -v bun &> /dev/null; then
+  BUN_X="bun"
+elif command -v npx &> /dev/null; then
+  BUN_X="npx -y bun"
+else
+  # 提示用户安装 bun
+fi
+
+# baoyu-url-to-markdown 脚本路径
+URL_TO_MD_SCRIPT="<baoyu-url-to-markdown skill 路径>/scripts/main.ts"
 ```
 
-文章将保存为：`$OUTPUT_DIR/YYYY-MM-DD_文章标题.md`
+#### 1.2 执行抓取
+
+```bash
+# 使用 --output-dir 指定输出目录（自动生成文件名）
+$BUN_X "$URL_TO_MD_SCRIPT" "$ARTICLE_URL" --output-dir "$OUTPUT_DIR"
+```
+
+脚本会自动从页面提取标题并生成文件。
+
+**输出说明**:
+- Markdown 文件: `$OUTPUT_DIR/mp.weixin.qq.com/{slug}.md`（初始输出）
+- HTML 快照: `$OUTPUT_DIR/mp.weixin.qq.com/{slug}-captured.html`
+
+#### 1.3 重命名文件（使用日期+文章标题）
+
+从保存的 Markdown 文件的 YAML front matter 中提取 `title`，然后重命名文件，添加日期前缀：
+
+```bash
+# 定位初始保存的文件
+INITIAL_MD=$(ls -t "$OUTPUT_DIR/mp.weixin.qq.com/"*.md 2>/dev/null | grep -v captured | head -1)
+
+# 从 YAML front matter 提取标题
+ARTICLE_TITLE=$(grep -m1 "^title:" "$INITIAL_MD" | sed 's/^title: *//' | tr -d '"')
+
+# 清理标题中的非法字符（用于文件名）
+CLEAN_TITLE=$(echo "$ARTICLE_TITLE" | sed 's/[\/\\:*?"<>|]//g')
+
+# 获取当前日期（YYYY-MM-DD 格式）
+CURRENT_DATE=$(date +%Y-%m-%d)
+
+# 重命名文件到 output 目录根目录（添加日期前缀）
+mv "$INITIAL_MD" "$OUTPUT_DIR/${CURRENT_DATE}_${CLEAN_TITLE}.md"
+#mv "${INITIAL_MD%.md}-captured.html" "$OUTPUT_DIR/${CURRENT_DATE}_${CLEAN_TITLE}-captured.html" 2>/dev/null || true
+
+# 删除空的域名子目录
+rmdir "$OUTPUT_DIR/mp.weixin.qq.com" 2>/dev/null || true
+
+# 最终文件路径
+SAVED_MD="$OUTPUT_DIR/${CURRENT_DATE}_${CLEAN_TITLE}.md"
+```
 
 ### 步骤 2：读取保存的文章
 
 从输出目录读取刚保存的 Markdown 文件，提取内容用于转换。
+
+```bash
+# 使用步骤 1.3 中确定的文件路径
+# SAVED_MD 变量已设置为 "$OUTPUT_DIR/${CURRENT_DATE}_${CLEAN_TITLE}.md"
+```
+
+读取该文件内容，从 YAML front matter 中提取 `title`、`author`、`description` 等元信息。
 
 ### 步骤 3：分析文章结构
 
@@ -115,9 +173,9 @@ python <wechat-url-to-markdown skill 路径>/scripts/save_wechat.py "$ARTICLE_UR
 
 ### 步骤 5：保存小红书文案
 
-将生成的小红书文案保存到 `$OUTPUT_DIR` 目录。
+将生成的小红书文案保存到 `$OUTPUT_DIR/` 目录（与原文同级）。
 
-**文件名格式**: `YYYY-MM-DD_文章标题_xhs.md`
+**文件名格式**: `YYYY-MM-DD_{文章标题}_xhs.md`（与原文 `YYYY-MM-DD_{文章标题}.md` 对应）
 
 **文件内容结构**:
 ```markdown
@@ -130,8 +188,12 @@ python <wechat-url-to-markdown skill 路径>/scripts/save_wechat.py "$ARTICLE_UR
 
 **保存操作**:
 ```bash
-# 写入文件（$OUTPUT_DIR 已在步骤 0 创建）
-cat > "$OUTPUT_DIR/YYYY-MM-DD_文章标题_xhs.md" << 'EOF'
+# 基于原文文件名生成小红书文案文件名
+# 原文: YYYY-MM-DD_{文章标题}.md → 小红书: YYYY-MM-DD_{文章标题}_xhs.md
+XHS_FILE="${SAVED_MD%.md}_xhs.md"
+
+# 写入文件
+cat > "$XHS_FILE" << 'EOF'
 $XHS_CONTENT
 EOF
 ```
@@ -148,7 +210,7 @@ EOF
 
 ---
 
-📁 文件已保存至: `$OUTPUT_DIR/YYYY-MM-DD_文章标题_xhs.md`
+📁 文件已保存至: `$OUTPUT_DIR/YYYY-MM-DD_{文章标题}_xhs.md`
 ```
 
 ## 内容转换原则
@@ -237,10 +299,12 @@ EOF
 
 ```
 wechat-to-xiaohongshu/
-└── output/                           # 默认输出目录（建议加入 .gitignore）
-    ├── YYYY-MM-DD_文章标题.md          # 公众号原文
-    └── YYYY-MM-DD_文章标题_xhs.md      # 小红书文案
+└── output/                                    # 默认输出目录（建议加入 .gitignore）
+    ├── YYYY-MM-DD_{文章标题}.md               # 公众号原文
+    └── YYYY-MM-DD_{文章标题}_xhs.md           # 小红书文案（转换后生成）
 ```
+
+> 注：`YYYY-MM-DD` 为当前日期，`{文章标题}` 从页面自动提取
 
 ## 注意事项
 
@@ -250,3 +314,4 @@ wechat-to-xiaohongshu/
 - 避免过度营销化，保持内容真实
 - 技术类内容保持专业性，不过度娱乐化
 - **输出目录**：默认为 `wechat-to-xiaohongshu/output/`，可在调用时通过 `--output-dir` 参数自定义
+- **依赖**：需要安装 `bun` 运行时，用于执行 `baoyu-url-to-markdown` 脚本
