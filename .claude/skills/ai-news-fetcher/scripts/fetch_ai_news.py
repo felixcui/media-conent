@@ -27,7 +27,7 @@ RSS_API_BASE = os.getenv("AI_NEWS_API_BASE", "https://wexinrss.zeabur.app")
 
 # 分类图标映射
 CATEGORY_ICONS = {
-    "AI编程工具及实践": "💻",
+    "AI编程": "💻",
     "AI模型与技术": "🧠",
     "AI产品与应用": "🚀",
     "AI行业动态及观察": "📈",
@@ -52,7 +52,7 @@ def classify_news_with_ai(news_list):
 分类规则：
 1. 只保留与AI、人工智能、机器学习、大模型、AI工具、AI应用相关的资讯
 2. 分类选项（严格使用以下分类名称）：
-   - AI编程工具及实践：AI编程工具（Cursor、Claude、Claude Code、GitHub Copilot、OpenClaw、IDE等）、编程助手、使用技巧、实战教程、代码生成、IDE插件、开发者工具、编程实践
+   - AI编程：AI编程工具（Cursor、Claude Code、GitHub Copilot、OpenClaw、IDE等）、编程助手、代码生成、IDE插件、开发者工具；AI对软件工程的影响与应用（需求分析、架构设计、代码开发、测试、部署、运维等环节）；软件工程智能化、研发效能提升、DevOps智能化、AI辅助开发全流程
    - AI模型与技术：大模型发布、版本更新（GPT-5、Claude新版等）、模型架构、训练技术、算法创新、性能优化、模型能力提升、推理优化、微调、量化、蒸馏等纯技术内容
    - AI产品与应用：AI应用产品、功能更新、工具发布、Agent、智能体、SaaS产品、应用场景、产品集成、面向用户的AI服务
    - AI行业动态及观察：融资投资、人事变动、上市IPO、行业政策、市场趋势、公司财报、竞争格局、合作并购等商业层面内容，以及行业观察、观点评论、趋势分析
@@ -62,9 +62,9 @@ def classify_news_with_ai(news_list):
    - **非AI内容不要分类**：招聘、活动通知、时政、普通科技新闻、汽车、房产、游戏、娱乐、音乐、体育等
    - 非AI关键词列表：招聘、求职、简历、岗位、征集、活动、论坛、大会、峰会、工作坊、申报、时政、两会、政府工作报告、习近平、人大、政协、汽车、房产、房贷、公积金、社保、医保、教育、学校、大学、考试、毕业、就业、股市、股票、基金、理财、保险、银行、信用卡、电商、购物、旅游、美食、健康、医疗、疫苗、疫情、体育、足球、篮球、网球、奥运会、世界杯、娱乐、明星、八卦、音乐、演唱会、歌手、彩铃、游戏、电竞、动漫、漫画、小说、文学、电影、电视剧、综艺、直播、网红、抖音、快手、小红书、美妆、化妆、护肤、服装、时尚、奢侈品、母婴、育儿、宠物
 5. 分类判断要点（重要）：
-   - **AI编程工具及实践判断**：
-     - 关键词：Claude编程、Cursor、Copilot、OpenClaw、IDE、编程助手、技巧、实战、教程、代码生成
-     - 示例："Claude编程的42个实战技巧"、"Cursor使用指南"、"VSCode AI插件" → 编程工具及实践
+   - **AI编程判断**：
+     - 关键词：Claude编程、Cursor、Copilot、OpenClaw、IDE、编程助手、技巧、实战、教程、代码生成、软件工程、研发效能、DevOps、需求分析、架构设计、测试、部署、运维、CI/CD、代码审查
+     - 示例："Claude编程的42个实战技巧"、"Cursor使用指南"、"AI辅助需求分析"、"智能代码审查"、"AI驱动的DevOps" → AI编程
    - **AI模型与技术判断**：
      - 关键词：GPT、Claude、Qwen、Llama、模型发布、版本更新、架构、算法、训练、推理、能力提升
      - 示例："GPT-5.4 将发布"、"Claude 4.0 发布"、"模型架构创新" → 模型与技术
@@ -82,7 +82,7 @@ def classify_news_with_ai(news_list):
    - 包含"汽车"、"房产"、"股市"、"旅游"等关键词 → 不分类（非AI）
    - 包含"两会"、"政府工作报告"、"习近平"等政治关键词 → 不分类（非AI）
    - 包含"观察"、"观点"、"分析"等词（如果讲的是AI行业）→ AI行业动态及观察
-   - 包含"Claude编程"、"编程技巧"、"实战"等词 → AI编程工具及实践
+   - 包含"Claude编程"、"编程技巧"、"实战"、"软件工程"、"DevOps"等词 → AI编程
    - 包含"发布"、"版本"、"能力提升"等词（如果讲的是大模型本身）→ AI模型与技术
 7. 如果某分类没有资讯，则不显示该分类
 
@@ -94,7 +94,7 @@ def classify_news_with_ai(news_list):
 
 例如：
 {{
-  "AI编程工具及实践": [1, 5, 8],
+  "AI编程": [1, 5, 8],
   "AI模型与技术": [2, 9],
   "AI产品与应用": [3, 10],
   "AI行业动态及观察": [4, 6, 7],
@@ -135,7 +135,7 @@ def classify_news_with_ai(news_list):
 def classify_by_keywords(news_list):
     """关键词分类后备方案（谨慎过滤非AI内容）"""
     categories = {
-        "AI编程工具及实践": [],
+        "AI编程": [],
         "AI模型与技术": [],
         "AI产品与应用": [],
         "AI行业动态及观察": [],
@@ -143,12 +143,22 @@ def classify_by_keywords(news_list):
         "非AI": []  # 用于标记非AI内容
     }
 
-    # AI编程工具及实践关键词（开发者工具）
-    coding_tool_keywords = ["Claude编程", "Cursor", "Claude Code", "Copilot", "IDE", "编辑器", "CLI", "命令行",
-                            "代码生成", "IDE插件", "调试", "重构", "Git", "GitHub", "GitLab",
-                            "VSCode", "IntelliJ", "PyCharm", "开发者工具", "Code Review",
-                            "智能编程", "代码补全", "代码审查", "编程助手", "Vibe Coding",
-                            "编程技巧", "实战技巧", "教程", "指南", "编程实践", "使用技巧"]
+    # AI编程关键词（开发者工具 + 软件工程全流程）
+    coding_keywords = [
+        # 编程工具
+        "Claude编程", "Cursor", "Claude Code", "Copilot", "IDE", "编辑器", "CLI", "命令行",
+        "代码生成", "IDE插件", "调试", "重构", "Git", "GitHub", "GitLab",
+        "VSCode", "IntelliJ", "PyCharm", "开发者工具", "Code Review",
+        "智能编程", "代码补全", "代码审查", "编程助手", "Vibe Coding",
+        "编程技巧", "实战技巧", "教程", "指南", "编程实践", "使用技巧",
+        # 软件工程全流程
+        "软件工程", "研发效能", "DevOps", "CI/CD", "持续集成", "持续部署",
+        "需求分析", "架构设计", "系统设计", "技术选型", "代码质量",
+        "测试", "自动化测试", "单元测试", "集成测试", "性能测试", "测试覆盖率",
+        "部署", "运维", "监控", "日志", "告警", "容灾", "高可用",
+        "敏捷开发", "Scrum", "看板", "项目管理", "团队协作",
+        "研发流程", "开发流程", "交付效率", "代码规范", "技术债务"
+    ]
 
     # AI模型与技术关键词（技术本身）
     model_tech_keywords = ["模型架构", "Transformer", "MoE", "强化学习", "RL", "微调", "Fine-tuning",
@@ -214,10 +224,10 @@ def classify_by_keywords(news_list):
                 break
 
         if not classified:
-            # 优先检查AI编程工具及实践
-            for keyword in coding_tool_keywords:
+            # 优先检查AI编程（包括软件工程相关）
+            for keyword in coding_keywords:
                 if keyword in title:
-                    categories["AI编程工具及实践"].append(i)
+                    categories["AI编程"].append(i)
                     classified = True
                     break
 
@@ -300,7 +310,7 @@ def get_news_summary(days: int = 1, classify: bool = True, platform: str = "feis
         response.raise_for_status()
         data = response.json()
 
-        # 提取 title 和 link，过滤指定公众号
+        # 提取 title、link 和公众号名称，过滤指定公众号
         news_list = []
         excluded_count = 0
         if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
@@ -314,8 +324,9 @@ def get_news_summary(days: int = 1, classify: bool = True, platform: str = "feis
 
                     title = item.get("title", "")
                     link = item.get("link", "")
+                    biz_name = item.get("biz_name", "")  # 获取公众号名称
                     if title and link:
-                        news_list.append({"title": title, "link": link})
+                        news_list.append({"title": title, "link": link, "biz_name": biz_name})
 
         if not news_list:
             return f"""## 📰 AI 资讯汇总
@@ -361,11 +372,6 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
     lines.append("## AI 资讯汇总")
     lines.append("")
     
-    # 日期和统计信息（使用引用块）
-    lines.append(f"> `{start_date.strftime('%Y-%m-%d')}` - `{end_date.strftime('%Y-%m-%d')}`")
-    lines.append(f"> 共 **{len(news_list)}** 条资讯")
-    lines.append("")
-    
     # 计算AI相关资讯数量
     ai_news_count = sum(len(indices) for indices in categories.values())
     
@@ -376,7 +382,7 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
     
     # 按顺序输出分类
     category_order = [
-        "AI编程工具及实践",
+        "AI编程",
         "AI模型与技术", 
         "AI产品与应用",
         "AI行业动态及观察",
@@ -395,12 +401,16 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
         lines.append(f"### {category}（{len(indices)} 条）")
         lines.append("")
         
-        # 资讯列表（带编号）
+        # 资讯列表（带编号和公众号名称）
         for i, idx in enumerate(indices, 1):
             news = news_list[idx]
             title = news["title"]
             link = news["link"]
-            lines.append(f"{i}. [{title}]({link})")
+            biz_name = news.get("biz_name", "")
+            if biz_name:
+                lines.append(f"{i}. [{title}]({link}) `{biz_name}`")
+            else:
+                lines.append(f"{i}. [{title}]({link})")
         
         lines.append("")
     
@@ -438,8 +448,9 @@ def get_raw_news(days: int = 1) -> list:
                         continue
                     title = item.get("title", "")
                     link = item.get("link", "")
+                    biz_name = item.get("biz_name", "")  # 获取公众号名称
                     if title and link:
-                        news_list.append({"title": title, "link": link})
+                        news_list.append({"title": title, "link": link, "biz_name": biz_name})
         return news_list
     except Exception as e:
         print(f"获取资讯失败: {str(e)}")

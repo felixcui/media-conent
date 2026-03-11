@@ -180,7 +180,7 @@ class WeChatNewsPublisher:
         today = datetime.now()
         date_str = today.strftime('%Y年%m月%d日')
         
-        title = f"📰 AI 资讯汇总 - {date_str}"
+        title = f"AI 资讯汇总 - {date_str}"
         author = "AI 资讯助手"
         digest = f"本期汇总了最新的 AI 相关资讯，涵盖编程工具、模型技术、产品应用和行业动态等内容。"
         content_source_url = ""
@@ -261,6 +261,8 @@ class WeChatNewsPublisher:
         
         if create_only:
             print("✅ 仅创建草稿模式，不进行发布")
+            # 发送完成通知到飞书
+            self.send_completion_notification()
             return media_id
         
         # 发布草稿
@@ -273,10 +275,12 @@ class WeChatNewsPublisher:
         print(f"   请在公众号后台查看: https://mp.weixin.qq.com/")
         print("=" * 50)
         
+        # 发送完成通知到飞书
+        self.send_completion_notification()
+        
         return media_id
 
-
-def send_completion_notification(self):
+    def send_completion_notification(self):
         """发送执行完成通知到飞书"""
         print("📱 发送完成通知到飞书...")
         
@@ -285,8 +289,9 @@ def send_completion_notification(self):
             result = subprocess.run([
                 "/opt/homebrew/bin/openclaw", "message", "send",
                 "--channel", "feishu",
+                "--account", "fs_news_claw",
                 "--target", "ou_5b479a8489e8ebf34df50794d2a2cb0d",
-                "--message", "✅ AI资讯发布到公众号任务已完成 (7:10)"
+                "--message", "✅ AI资讯发布到公众号任务已完成，请在公众号后台查看草稿。"
             ], capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0:
