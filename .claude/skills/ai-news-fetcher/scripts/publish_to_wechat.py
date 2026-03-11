@@ -18,7 +18,7 @@ from datetime import datetime
 import subprocess
 
 # 使用 workspace 根目录作为基准
-WORKSPACE_ROOT = Path("/Users/felix/.openclaw/workspace-fs_news_claw")
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 _AICODING_SCRIPTS = WORKSPACE_ROOT / "skills" / "aicoding-news-weekly" / "scripts"
 _AICODING_ENV = WORKSPACE_ROOT / "skills" / "aicoding-news-weekly" / ".env"
 

@@ -121,17 +121,12 @@ python <wechat-url-to-markdown skill 路径>/scripts/save_wechat.py "$ARTICLE_UR
 
 **文件内容结构**:
 ```markdown
----
-title: "小红书文案标题"
-source: "原文标题"
-author: "公众号作者"
-date: "YYYY-MM-DD"
-original_url: "微信公众号链接"
-tags: ["标签1", "标签2", "标签3"]
----
+# 小红书文案标题
 
-# 小红书文案内容...
+[文案内容...]
 ```
+
+> 注意：不添加 YAML frontmatter 元信息
 
 **保存操作**:
 ```bash
@@ -143,9 +138,18 @@ EOF
 
 ### 步骤 6：输出结果
 
-告知用户两个文件的保存位置（均在同一目录下）：
-1. 原文保存路径: `$OUTPUT_DIR/YYYY-MM-DD_文章标题.md`
-2. 小红书文案保存路径: `$OUTPUT_DIR/YYYY-MM-DD_文章标题_xhs.md`
+直接展示小红书文案内容预览，并在结尾简要说明文件保存路径。
+
+**输出格式**:
+```markdown
+## 小红书文案预览
+
+[小红书文案内容...]
+
+---
+
+📁 文件已保存至: `$OUTPUT_DIR/YYYY-MM-DD_文章标题_xhs.md`
+```
 
 ## 内容转换原则
 
@@ -183,13 +187,9 @@ EOF
 
 ### 输出
 
-**文件已保存（默认目录）:**
-
-1. **原文**: `wechat-to-xiaohongshu/output/2026-01-28_文章标题.md`
-2. **小红书文案**: `wechat-to-xiaohongshu/output/2026-01-28_文章标题_xhs.md`
-
-**小红书文案预览:**
 ```markdown
+## 小红书文案预览
+
 # 🔥 Claude Code神器推荐！让AI变成你的项目经理！
 
 ✨ 还在为AI代码质量不稳定发愁？
