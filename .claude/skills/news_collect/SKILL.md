@@ -1,6 +1,6 @@
 ---
 name: news-collect
-description: "一站式资讯收集工具：抓取文章 → 使用大模型生成摘要 → 推送到飞书。支持微信公众号文章和普通网页，完全自动化处理。"
+description: "一站式资讯收集工具：抓取文章 → 使用大模型生成摘要 → 推送到飞书。支持微信公众号文章、普通网页和飞书 Wiki（需手动处理），完全自动化处理。"
 metadata: { "openclaw": { "emoji": "📰", "requires": { "bins": ["python3", "openclaw"] } } }
 ---
 
@@ -93,6 +93,30 @@ python3 scripts/collect.py <文章URL> --summary-length 150
 |---------|---------|---------|
 | 微信公众号 | ✅ | 标题、作者、发布时间、正文 |
 | 普通网页 | ✅ | 标题、正文 |
+| 飞书 Wiki | ⚠️ | 需要手动处理（见下方说明） |
+
+### 飞书 Wiki 链接处理
+
+飞书 Wiki 链接需要特殊处理，因为需要通过飞书 API 获取内容，且需要当前会话的用户授权。
+
+当在命令行中使用 news-collect 处理飞书 Wiki 链接时，脚本会提示：
+
+```
+⚠️  飞书 Wiki 链接检测
+   飞书 Wiki 需要在当前 OpenClaw 会话中处理，请直接发送链接给我，我会自动获取内容并推送
+
+   URL: https://waytoagi.feishu.cn/wiki/xxx
+```
+
+**正确处理方式：**
+- 直接在 OpenClaw 对话中发送飞书 Wiki 链接
+- 我会自动调用 `feishu_fetch_doc` 工具获取内容
+- 生成摘要并推送到飞书多维表格
+
+**为什么需要这样处理？**
+- `feishu_fetch_doc` 工具需要用户 OAuth 授权
+- 授权仅在当前会话中有效
+- 独立 Python 脚本无法访问当前会话的授权状态
 
 ## 配置
 
@@ -127,13 +151,19 @@ WEBHOOK_URL = "https://www.feishu.cn/flow/api/trigger-webhook/4ebcdc4fd26c38187f
 
 ```
 news_collect/
-├── SKILL.md              # 技能文档
+├── SKILL.md                  # 技能文档
 └── scripts/
-    ├── collect.py        # ⭐ 主脚本（一站式）
-    └── fetch_content.py  # 旧版（保留兼容）
+    ├── collect.py            # ⭐ 主脚本（一站式）
+    ├── fetch_feishu_wiki.py  # 飞书 Wiki 抓取辅助脚本
+    └── fetch_content.py      # 旧版（保留兼容）
 ```
 
 ## 更新日志
+
+### v2.1 (2026-03-18)
+- 新增：支持飞书 Wiki 链接检测
+- 新增：自动提示用户在当前会话中处理飞书 Wiki 链接
+- 优化：改进了飞书 Wiki 的处理流程说明
 
 ### v2.0 (2026-03-15)
 - 新增：使用 Claude Code 大模型生成摘要

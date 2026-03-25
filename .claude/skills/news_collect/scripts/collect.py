@@ -25,6 +25,11 @@ def is_wechat_article(url):
     return 'mp.weixin.qq.com' in url or 'weixin.qq.com' in url
 
 
+def is_feishu_wiki(url):
+    """判断是否是飞书 Wiki 链接"""
+    return 'feishu.cn/wiki' in url or 'larkoffice.com/wiki' in url
+
+
 def format_timestamp(timestamp_str):
     """将时间戳转换为可读格式"""
     try:
@@ -145,10 +150,30 @@ def fetch_generic_article(url):
         return {"error": f"抓取失败: {str(e)}"}
 
 
+def fetch_feishu_wiki_direct(url):
+    """直接使用 feishu_fetch_doc 工具获取飞书 Wiki 内容"""
+    # 由于 feishu_fetch_doc 需要当前会话的授权
+    # 在独立脚本中无法直接调用
+    # 返回特殊标记，让主流程提示用户
+    
+    return {
+        "error": "FEISHU_WIKI_REQUIRES_SESSION",
+        "url": url,
+        "message": "飞书 Wiki 需要在当前 OpenClaw 会话中处理，请直接发送链接给我，我会自动获取内容并推送"
+    }
+
+
+def fetch_feishu_wiki(url):
+    """抓取飞书 Wiki 内容 - 使用直接调用方式"""
+    return fetch_feishu_wiki_direct(url)
+
+
 def fetch_article(url):
     """统一抓取文章接口"""
     if is_wechat_article(url):
         return fetch_wechat_article(url)
+    elif is_feishu_wiki(url):
+        return fetch_feishu_wiki(url)
     return fetch_generic_article(url)
 
 
@@ -160,32 +185,32 @@ def generate_summary_with_llm(content, title="", max_length=200):
     """
     if not content:
         return ""
-    
-    # 清理内容，限制长度
-    content = content.strip()[:3000]
-    
-    # 构建 prompt
-    prompt = f"""请为以下文章生成一个简洁的摘要，要求：
-1. 长度控制在 {max_length} 字以内
-2. 突出文章的核心观点和关键信息
-3. 语言简洁明了，避免冗余
-4. 不要包含代码、命令行等技术细节
-5. 直接输出摘要内容，不要添加任何说明或标题
 
-文章标题：{title}
+    # 清理内容，限制长度 - 减少内容长度以加快处理速度
+    content = content.strip()[:2000]  # 从3000减少到2000
 
-文章内容：
+    # 构建更简洁的 prompt
+    prompt = f"""请用{max_length}字以内总结这篇文章的核心观点，要求：
+1. 一段完整的话，以句号结尾
+2. 不要省略号
+3. 突出关键信息
+4. 不要代码和命令行
+5. 直接输出摘要，不要标题
+
+标题：{title}
+
+内容：
 {content}
 """
 
-    # 使用 Claude Code 生成摘要
+    # 使用 Claude Code 生成摘要 - 增加超时时间到90秒
     try:
         print("   使用 Claude Code 生成摘要...")
         result = subprocess.run(
             ["claude", "-p", "--permission-mode", "bypassPermissions", "--output-format", "text", prompt],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=90  # 从60增加到90秒
         )
         
         if result.returncode == 0:
@@ -193,12 +218,29 @@ def generate_summary_with_llm(content, title="", max_length=200):
             # 清理摘要
             summary = re.sub(r'^["\']|["\']$', '', summary)
             summary = re.sub(r'^(摘要|总结)[:：]?\s*', '', summary)
-            
+            # 移除省略号，确保完整性
+            summary = re.sub(r'\.\.\.', '', summary)
+            summary = re.sub(r'…', '', summary)
+
             if len(summary) > 50:
+                # 如果超过长度限制，智能截断到完整句子
                 if len(summary) > max_length:
-                    summary = summary[:max_length-3] + "..."
+                    truncated = summary[:max_length]
+                    # 找到最后一个句号的位置
+                    last_period = truncated.rfind('。')
+                    if last_period > max_length * 0.6:  # 确保至少保留60%内容
+                        summary = truncated[:last_period+1]
+                    else:
+                        # 如果找不到合适的句号，直接截断并添加句号
+                        summary = truncated.rstrip() + '。'
+                # 确保摘要以句号结尾
+                if not summary.endswith('。'):
+                    summary = summary.rstrip('.') + '。'
                 print(f"   使用 Claude Code 生成摘要 ({len(summary)}字)")
                 return summary
+    except subprocess.TimeoutExpired:
+        print("   Claude Code 超时，使用规则生成摘要...")
+        return generate_summary_rule_based(content, title, max_length)
     except Exception as e:
         print(f"   Claude Code 不可用: {e}")
     
@@ -208,79 +250,103 @@ def generate_summary_with_llm(content, title="", max_length=200):
 
 
 def generate_summary_rule_based(content, title="", max_length=200):
-    """基于规则生成文章摘要"""
+    """基于规则生成文章摘要 - 改进版"""
     if not content:
         return ""
     
     content = content.strip()
     
-    # 清理内容：去除多余空白、特殊字符
+    # 清理内容：去除多余空白、特殊字符、emoji
     content = re.sub(r'\s+', ' ', content)
-    content = re.sub(r'[🦞📝🛠️💡🔥⭐✨✅❌📌📎]', '', content)
+    content = re.sub(r'[🦞📝🛠️💡🔥⭐✨✅❌📌📎🎯📊💪⚡🌟💎🚀📝✅💡🎁❤️👇📌]', '', content)
     
-    # 提取句子
+    # 优先从文章开头提取关键信息（通常包含核心观点）
+    # 提取前500字作为重点分析区域
+    intro_section = content[:500] if len(content) > 500 else content
+    
+    # 从文章开头提取关键句子（通常包含核心观点）
+    intro_sentences = re.split(r'[。！？\n]', intro_section)
+    intro_sentences = [s.strip() for s in intro_sentences if len(s.strip()) > 20 and len(s.strip()) < 150]
+    
+    # 从全文提取句子
     sentences = re.split(r'[。！？\n]', content)
-    sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 20 and len(s.strip()) < 150]
     
-    # 过滤掉代码、命令行、URL
+    # 过滤掉代码、命令行、URL、指令等
     filtered_sentences = []
+    skip_patterns = [
+        r'^```', r'^python', r'^npm', r'^\$', r'^>', r'^https?://',
+        r'^/', r'^\[', r'^\d+\.', r'^[\-\*\+#]',  # 跳过markdown格式
+        r'^(请|建议|注意|提示|警告)',  # 跳过指令性文字
+    ]
+    
     for sent in sentences:
-        # 跳过代码片段
-        if sent.startswith('```') or sent.startswith('python') or sent.startswith('npm'):
+        if any(re.match(p, sent) for p in skip_patterns):
             continue
-        if sent.startswith('$') or sent.startswith('>'):
-            continue
-        # 跳过纯 URL
-        if re.match(r'^https?://', sent):
-            continue
-        # 跳过过短的句子
-        if len(sent) < 20:
+        # 跳过纯数字或纯符号
+        if re.match(r'^[\d\s\W]+$', sent):
             continue
         filtered_sentences.append(sent)
     
-    # 关键句识别（优先级排序）
+    # 关键句识别（优先级排序）- 更精准的模式
     key_patterns = [
-        r'(介绍|分享|讲解|说明|阐述).{10,50}(方法|方案|技巧|经验|教程|流程|系统)',
-        r'(核心|关键|要点|重点).{10,50}(是|在于|为)',
-        r'(总结|结论|建议).{10,50}',
-        r'(实现|搭建|构建|创建).{10,50}(自动化|系统|工具|流程)',
-        r'(使用|采用|通过).{10,50}(OpenClaw|Claude|AI|工具)',
+        r'(本文|文章|作者|指出|认为|表示|介绍|分享|讲解|说明|阐述)',
+        r'(核心|关键|要点|重点|本质|实质)',
+        r'(总结|结论|建议|启示|意义|价值)',
+        r'(通过|使用|采用|利用|基于).{5,30}(实现|达成|完成|做到)',
+        r'(解决|应对|处理).{5,30}(问题|挑战|痛点|难题)',
     ]
     
     key_sentences = []
     normal_sentences = []
     
-    for sent in filtered_sentences[:15]:
+    # 优先使用开头的句子
+    for sent in intro_sentences[:5]:
         is_key = any(re.search(pattern, sent) for pattern in key_patterns)
-        if is_key and len(sent) > 20 and len(sent) < 120:
+        if is_key:
             key_sentences.append(sent)
-        elif len(sent) > 20 and len(sent) < 100:
+        else:
             normal_sentences.append(sent)
     
-    # 构建摘要：优先关键句，补充普通句
+    # 再从全文中找关键句
+    for sent in filtered_sentences[:20]:
+        if sent in intro_sentences[:5]:
+            continue
+        is_key = any(re.search(pattern, sent) for pattern in key_patterns)
+        if is_key and len(sent) > 30:
+            key_sentences.append(sent)
+    
+    # 构建摘要
     summary_parts = []
     
+    # 优先使用关键句
     if key_sentences:
-        summary_parts.extend(key_sentences[:2])
+        summary_parts.extend(key_sentences[:3])
     
-    if len(''.join(summary_parts)) < 80 and normal_sentences:
-        needed = 2 if len(summary_parts) == 0 else 1
-        summary_parts.extend(normal_sentences[:needed])
+    # 如果关键句不够，补充普通句
+    if len(''.join(summary_parts)) < 100 and normal_sentences:
+        for sent in normal_sentences[:2]:
+            if len(''.join(summary_parts)) + len(sent) < max_length - 10:
+                summary_parts.append(sent)
     
     # 合并并清理
     summary = '。'.join(summary_parts)
     summary = re.sub(r'。+', '。', summary)
     summary = summary.strip('。')
     
-    # 控制长度
+    # 控制长度 - 确保完整句子，不出现省略号
     if len(summary) > max_length:
-        # 尝试在句子边界截断
-        truncated = summary[:max_length-3]
+        truncated = summary[:max_length]
         last_period = truncated.rfind('。')
-        if last_period > max_length * 0.7:
+        if last_period > max_length * 0.5:  # 确保至少保留50%内容
             summary = truncated[:last_period+1]
         else:
-            summary = truncated + "..."
+            # 如果找不到合适的句号，直接截断并添加句号
+            summary = truncated.rstrip() + '。'
+    
+    # 确保摘要以句号结尾
+    if not summary.endswith('。'):
+        summary = summary.rstrip('.') + '。'
     
     return summary
 
@@ -330,7 +396,14 @@ def main():
     data = fetch_article(args.url)
     
     if "error" in data:
-        print(f"❌ 抓取失败: {data['error']}")
+        error_msg = data['error']
+        # 特殊处理飞书 Wiki
+        if error_msg == "FEISHU_WIKI_REQUIRES_SESSION":
+            print(f"⚠️  飞书 Wiki 链接检测")
+            print(f"   {data.get('message', '请直接在当前对话中发送链接，我会自动处理')}")
+            print(f"\n   URL: {args.url}")
+            sys.exit(0)
+        print(f"❌ 抓取失败: {error_msg}")
         sys.exit(1)
     
     print(f"✅ 抓取成功: {data['title']}")

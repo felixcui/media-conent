@@ -18,7 +18,15 @@ from datetime import datetime
 import subprocess
 
 # 使用 workspace 根目录作为基准
-WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+# 处理 symlink 情况，先获取脚本的实际路径
+_SCRIPT_REAL_PATH = Path(__file__).resolve()
+# 如果是 symlink，找到实际的 workspace 根目录
+if "/work/media-conent/.claude/skills/" in str(_SCRIPT_REAL_PATH):
+    # 使用硬编码的 workspace 路径
+    WORKSPACE_ROOT = Path("/Users/felix/.openclaw/workspace-fs_news_claw")
+else:
+    WORKSPACE_ROOT = _SCRIPT_REAL_PATH.parents[3]
+
 _AICODING_SCRIPTS = WORKSPACE_ROOT / "skills" / "aicoding-news-weekly" / "scripts"
 _AICODING_ENV = WORKSPACE_ROOT / "skills" / "aicoding-news-weekly" / ".env"
 
@@ -160,6 +168,14 @@ class WeChatNewsPublisher:
             
             # 读取 HTML 内容
             html_content = Path(html_path).read_text(encoding='utf-8')
+            
+            # 提取 body 内的内容（微信只需要 body 部分）
+            import re
+            body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, re.DOTALL)
+            if body_match:
+                html_content = body_match.group(1)
+                print(f"✅ 已提取 body 内容")
+            
             print(f"✅ HTML 转换成功")
             print(f"   HTML 长度: {len(html_content)} 字节")
             print(f"   HTML 文件: {html_path}")
@@ -180,7 +196,7 @@ class WeChatNewsPublisher:
         today = datetime.now()
         date_str = today.strftime('%Y年%m月%d日')
         
-        title = f"AI 资讯汇总 - {date_str}"
+        title = f"AI 资讯日报 - {date_str}"
         author = "AI 资讯助手"
         digest = f"本期汇总了最新的 AI 相关资讯，涵盖编程工具、模型技术、产品应用和行业动态等内容。"
         content_source_url = ""
