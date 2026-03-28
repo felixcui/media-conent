@@ -140,11 +140,15 @@ def publish_to_wechat_api(
         print("3. 在公众号后台设置 IP 白名单")
         raise
 
+    # 处理 HTML 中的图片（下载并上传到微信）
+    print("🔄 正在处理文章中的图片...")
+    processed_content, img_count = client.process_html_images(content)
+
     # 创建草稿
     try:
         media_id = client.create_draft(
             title=title,
-            content=content,
+            content=processed_content,
             author=author,
             digest=digest,
             thumb_media_id=thumb_media_id

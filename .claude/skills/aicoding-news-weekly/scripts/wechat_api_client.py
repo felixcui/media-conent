@@ -14,9 +14,12 @@
 
 import json
 import os
+import re
 import time
+import tempfile
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
+from urllib.parse import urlparse
 import requests
 from dotenv import load_dotenv
 
@@ -267,7 +270,120 @@ class WeChatAPIClient:
         
         print(f"✅ 封面图上传成功，media_id: {media_id}")
         return media_id
-    
+
+    def download_image(self, image_url: str, timeout: int = 30) -> Optional[bytes]:
+        """下载图片
+
+        Args:
+            image_url: 图片 URL
+            timeout: 超时时间（秒）
+
+        Returns:
+            图片二进制数据，失败返回 None
+        """
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            response = requests.get(image_url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.content
+        except Exception as e:
+            print(f"⚠️  下载图片失败 {image_url}: {e}")
+            return None
+
+    def upload_image_from_url(self, image_url: str) -> Optional[str]:
+        """从 URL 下载图片并上传到微信公众号
+
+        Args:
+            image_url: 图片 URL
+
+        Returns:
+            微信图片 URL，失败返回 None
+        """
+        # 下载图片
+        image_data = self.download_image(image_url)
+        if not image_data:
+            return None
+
+        # 保存到临时文件
+        try:
+            # 从 URL 提取文件扩展名
+            parsed = urlparse(image_url)
+            path = parsed.path.lower()
+            if '.png' in path:
+                ext = '.png'
+                content_type = 'image/png'
+            elif '.gif' in path:
+                ext = '.gif'
+                content_type = 'image/gif'
+            elif '.webp' in path:
+                ext = '.webp'
+                content_type = 'image/webp'
+            else:
+                ext = '.jpg'
+                content_type = 'image/jpeg'
+
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
+                f.write(image_data)
+                temp_path = f.name
+
+            try:
+                # 上传到微信
+                print(f"📤 上传图片: {image_url[:60]}...")
+                with open(temp_path, 'rb') as f:
+                    files = {'media': (f'image{ext}', f, content_type)}
+                    data = self._api_call('POST', 'media/uploadimg', files=files)
+
+                wechat_url = data.get('url')
+                if wechat_url:
+                    print(f"✅ 图片上传成功: {wechat_url[:60]}...")
+                    return wechat_url
+                else:
+                    print(f"⚠️  上传成功但未返回 URL")
+                    return None
+            finally:
+                # 删除临时文件
+                os.unlink(temp_path)
+
+        except Exception as e:
+            print(f"⚠️  上传图片失败: {e}")
+            return None
+
+    def process_html_images(self, html_content: str) -> Tuple[str, int]:
+        """处理 HTML 中的图片，上传到微信并替换链接
+
+        Args:
+            html_content: HTML 内容
+
+        Returns:
+            (处理后的 HTML, 成功替换的图片数量)
+        """
+        # 提取所有图片 URL
+        img_pattern = r'<img[^>]+src=["\']([^"\']+)["\']'
+        matches = re.findall(img_pattern, html_content)
+
+        if not matches:
+            return html_content, 0
+
+        print(f"\n🖼️  发现 {len(matches)} 张图片，正在处理...")
+
+        success_count = 0
+        for original_url in matches:
+            # 跳过已经是微信域名的图片
+            if 'mmbiz.qpic.cn' in original_url or 'weixin.qq.com' in original_url:
+                continue
+
+            # 上传图片到微信
+            wechat_url = self.upload_image_from_url(original_url)
+            if wechat_url:
+                # 替换 HTML 中的图片链接
+                html_content = html_content.replace(original_url, wechat_url)
+                success_count += 1
+
+        print(f"✅ 成功上传 {success_count}/{len(matches)} 张图片\n")
+        return html_content, success_count
+
     def create_draft(
         self,
         title: str,
