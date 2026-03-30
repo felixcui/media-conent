@@ -3,7 +3,7 @@
 """
 AI 资讯发布到微信公众号（使用 baoyu-markdown-to-html）
 
-直接使用 fetch_ai_news.py 的 get_news_summary 获取 Markdown
+直接使用 fetch_ai_news_v4.py 的 get_news_summary 获取 Markdown
 使用 baoyu-markdown-to-html 转换为 HTML
 
 使用：
@@ -71,7 +71,7 @@ class WeChatNewsPublisher:
     
     def get_ai_news_markdown(self, days: int = 1) -> str:
         """
-        直接使用 fetch_ai_news.py 中的 get_news_summary 获取 Markdown
+        直接使用 fetch_ai_news_v4.py 中的 get_news_summary 获取 Markdown
         
         Args:
             days: 获取最近几天的资讯
@@ -82,33 +82,29 @@ class WeChatNewsPublisher:
         print(f"📰 正在获取最近 {days} 天的 AI 资讯...")
         
         # 导入 fetch_ai_news 模块
-        fetch_script = WORKSPACE_ROOT / "skills" / "ai-news-fetcher" / "scripts" / "fetch_ai_news.py"
+        fetch_script = WORKSPACE_ROOT / "skills" / "ai-news-fetcher" / "scripts" / "fetch_ai_news_v4.py"
         
         if not fetch_script.exists():
             raise FileNotFoundError(
-                f"fetch_ai_news.py 不存在: {fetch_script}\n"
+                f"fetch_ai_news_v4.py 不存在: {fetch_script}\n"
                 f"请确保 ai-news-fetcher skill 已正确安装"
             )
         
         try:
             # 动态导入 fetch_ai_news 模块
             import importlib.util
-            spec = importlib.util.spec_from_file_location("fetch_ai_news", str(fetch_script))
+            spec = importlib.util.spec_from_file_location("fetch_ai_news_v4", str(fetch_script))
             fetch_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(fetch_module)
             
             # 直接调用 get_news_summary 函数
             if hasattr(fetch_module, 'get_news_summary'):
-                markdown_content = fetch_module.get_news_summary(
-                    days=days,
-                    classify=True,
-                    platform="wechat"
-                )
+                markdown_content = fetch_module.get_news_summary(days=days)
                 print(f"✅ 成功获取 Markdown")
                 print(f"   Markdown 长度: {len(markdown_content)} 字节")
                 return markdown_content
             else:
-                raise RuntimeError("fetch_ai_news.py 中缺少 get_news_summary 函数")
+                raise RuntimeError("fetch_ai_news_v4.py 中缺少 get_news_summary 函数")
                 
         except Exception as e:
             raise RuntimeError(f"获取资讯失败: {e}")

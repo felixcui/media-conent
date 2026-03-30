@@ -38,13 +38,25 @@ def classify_with_ai(news_list):
     print(f"🤖 使用智谱 AI 分类 {len(news_list)} 条资讯...")
     
     # 准备资讯标题列表
-    news_text = "\\n".join([f"{i+1}. {item['title']}" for i, item in enumerate(news_list)])
+    news_text = "\n".join([f"{i+1}. {item['title']}" for i, item in enumerate(news_list)])
     
-    prompt = f"""分类：
-{news_text}
+    prompt = f"""请对以下 {len(news_list)} 条资讯进行智能分类。
 
-类别：AI编程、AI模型与技术、AI产品与应用、AI行业动态及观察、其他
-JSON格式：{{"类别":[索引]}}"""
+分类规则（严格使用以下6个分类名称）：
+
+**AI编程与开发** 💻 - 编程工具、软件开发、工程实践
+**AI模型与技术** 🧠 - 模型发布、技术突破、算法研究
+**AI内容创作** 🎨 - AI生成内容、创意工具、创作应用
+**AI产品与应用** 🚀 - AI产品、企业应用、行业落地
+**AI行业动态** 📈 - 融资、人事、公司动态、行业事件
+**观点与趋势** 💡 - 观点、趋势分析、深度思考
+**其他** 📂 - 招聘、非AI内容等
+
+请以 JSON 格式输出，格式如下：
+{{"AI编程与开发": [0, 3, 5], "AI模型与技术": [1, 2], ...}}
+
+待分类资讯：
+{news_text}"""
     
     try:
         from openai import OpenAI
@@ -62,7 +74,7 @@ JSON格式：{{"类别":[索引]}}"""
                 print(f"  尝试 {attempt + 1}/{max_retries}...")
                 
                 response = client.chat.completions.create(
-                    model="glm-5",
+                    model="glm-5-turbo",
                     messages=[
                         {"role": "system", "content": "分类助手，只输出JSON。"},
                         {"role": "user", "content": prompt}
@@ -83,10 +95,12 @@ JSON格式：{{"类别":[索引]}}"""
                     # 转换分类名称到标准格式
                     mapped_categories = {}
                     cat_mapping = {
-                        "AI编程": "AI编程",
+                        "AI编程与开发": "AI编程与开发",
                         "AI模型与技术": "AI模型与技术",
+                        "AI内容创作": "AI内容创作",
                         "AI产品与应用": "AI产品与应用",
-                        "AI行业动态及观察": "AI行业动态及观察",
+                        "AI行业动态": "AI行业动态",
+                        "观点与趋势": "观点与趋势",
                         "其他": "其他"
                     }
                     
@@ -128,76 +142,134 @@ def validate_categories(categories, total_count):
     """验证分类结果是否有效"""
     if not categories:
         return {}
-    
+
     classified_indices = set()
     for cat_name, indices in categories.items():
         if isinstance(indices, list):
             for idx in indices:
-                if isinstance(idx, int) and 1 <= idx <= total_count:
+                if isinstance(idx, int) and 0 <= idx < total_count:
                     classified_indices.add(idx)
-    
+
     if len(classified_indices) == total_count:
         return categories
-    
-    missing = [i for i in range(1, total_count + 1) if i not in classified_indices]
+
+    missing = [i for i in range(total_count) if i not in classified_indices]
     if missing:
         if "其他" not in categories:
             categories["其他"] = []
         categories["其他"].extend(missing)
-    
+
     return categories
 
 
 def classify_by_keywords(news_list):
-    """关键词分类后备方案"""
+    """智能关键词分类方案（6分类新版）"""
+    classified_indices = set()
     categories = {
-        "AI编程": [],
+        "AI编程与开发": [],
         "AI模型与技术": [],
+        "AI内容创作": [],
         "AI产品与应用": [],
-        "AI行业动态及观察": [],
+        "AI行业动态": [],
+        "观点与趋势": [],
         "其他": [],
     }
 
-    coding_keywords = ["编程", "代码", "开发", "IDE", "Git", "DevOps", "软件工程", "Cursor", "OpenClaw"]
-    model_tech_keywords = ["模型", "GPT", "Claude", "大模型", "算法", "训练", "推理", "架构", "论文"]
-    product_app_keywords = ["产品", "应用", "Agent", "智能体", "平台", "工具", "Skill", "MCP"]
-    industry_keywords = ["融资", "上市", "IPO", "人事", "离职", "入职", "GTC", "演讲", "行业"]
+    rules = [
+        ("AI编程与开发", [
+            "Vibe Coding", "Claude Code", "Cursor", "GitHub Copilot",
+            "编程助手", "代码生成", "IDE插件", "智能编程", "编程技巧",
+            "软件工程", "研发效能", "DevOps", "CI/CD", "代码审查",
+            "编码代理", "AI编码", "编程代理", "编码工具", "开源项目",
+            "从没写过代码", "干掉了一个估算团队",
+        ]),
+        ("AI模型与技术", [
+            "新论文", "论文", "顶会", "CVPR", "ICLR", "AAAI", "NeurIPS", "ICML",
+            "模型架构", "算法", "推理优化", "微调", "蒸馏", "量化",
+            "多模态", "Transformer", "Benchmark", "评测",
+            "性能直逼", "模型发布", "版本更新", "能力提升",
+        ]),
+        ("AI内容创作", [
+            "短剧", "视频生成", "AI视频", "AI绘画", "AI写作",
+            "图像生成", "内容创作", "创作工具", "生成式",
+            "Seedance", "Sora", "Midjourney", "Stable Diffusion",
+            "做AI视频", "AI做视频", "视频制作", "内容生产",
+        ]),
+        ("AI行业动态", [
+            "融资", "投资", "万美元", "亿人民币", "估值", "IPO", "上市",
+            "裁员", "入职", "离职", "人事变动", "任命", "辞职",
+            "收购", "并购", "加入", "联手", "合作",
+            "战争", "杀入", "砸", "亿", "战略", "布局",
+            "创业者", "独角兽", "巨头",
+        ]),
+        ("观点与趋势", [
+            "观点", "趋势", "观察", "思考", "分析",
+            "未来", "预测", "影响", "变革", "重塑",
+            "我却", "想要", "感想", "随笔",
+            "改造", "需要的不止是", "的边界",
+        ]),
+        ("AI产品与应用", [
+            "发布会", "正式发布", "上线", "推出",
+            "开卖", "送到", "正式", "答案", "方案",
+            "落地", "实践", "业务", "应用",
+            "Agent", "智能体", "SaaS", "平台",
+            "实测", "体验", "试用", "评测",
+        ]),
+    ]
+
+    non_ai_keywords = [
+        "招聘", "诚聘", "招贤", "加入我们", "简历",
+        "直播预告", "预告", "倒计时", "敬请期待",
+    ]
 
     for i, news in enumerate(news_list):
+        if i in classified_indices:
+            continue
+
         title = news["title"]
         classified = False
 
-        for keyword in coding_keywords:
+        for keyword in non_ai_keywords:
             if keyword in title:
-                categories["AI编程"].append(i + 1)
+                categories["其他"].append(i)
+                classified_indices.add(i)
                 classified = True
                 break
 
-        if not classified:
-            for keyword in model_tech_keywords:
+        if classified:
+            continue
+
+        for category, keywords in rules:
+            for keyword in keywords:
                 if keyword in title:
-                    categories["AI模型与技术"].append(i + 1)
+                    categories[category].append(i)
+                    classified_indices.add(i)
                     classified = True
                     break
+            if classified:
+                break
 
         if not classified:
-            for keyword in product_app_keywords:
-                if keyword in title:
-                    categories["AI产品与应用"].append(i + 1)
-                    classified = True
-                    break
+            if any(x in title for x in ["编码", "编程", "代码", "开源项目"]):
+                categories["AI编程与开发"].append(i)
+                classified_indices.add(i)
+            elif any(x in title for x in ["模型架构", "算法创新", "Benchmark", "论文", "顶会"]):
+                categories["AI模型与技术"].append(i)
+                classified_indices.add(i)
+            elif any(x in title for x in ["发布", "上线", "推出", "实测", "体验"]):
+                categories["AI产品与应用"].append(i)
+                classified_indices.add(i)
+            elif any(x in title for x in ["视频", "图像", "绘画", "写作", "创作", "生成"]):
+                categories["AI内容创作"].append(i)
+                classified_indices.add(i)
+            elif any(x in title for x in ["融资", "投资", "收购", "上市", "亿"]):
+                categories["AI行业动态"].append(i)
+                classified_indices.add(i)
+            else:
+                categories["AI产品与应用"].append(i)
+                classified_indices.add(i)
 
-        if not classified:
-            for keyword in industry_keywords:
-                if keyword in title:
-                    categories["AI行业动态及观察"].append(i + 1)
-                    classified = True
-                    break
-
-        if not classified:
-            categories["其他"].append(i + 1)
-
-    return {k: v for k, v in categories.items() if v}
+    return categories
 
 
 def get_news_summary(days: int = 1) -> str:
@@ -263,21 +335,21 @@ def format_output(news_list, categories, start_date, end_date):
     lines = []
     lines.append("## AI 资讯汇总")
     lines.append("")
-    lines.append(f"> 📅 `{start_date.strftime('%Y-%m-%d')}` - `{end_date.strftime('%Y-%m-%d')}`")
-    lines.append("")
     
     ai_news_count = sum(len(indices) for indices in categories.values())
     
     if ai_news_count == 0:
         lines.append("😊 暂无AI相关资讯～")
         lines.append("")
-        return "\\n".join(lines)
+        return "\n".join(lines)
     
     category_order = [
-        "AI编程",
+        "AI编程与开发",
         "AI模型与技术",
+        "AI内容创作",
         "AI产品与应用",
-        "AI行业动态及观察",
+        "AI行业动态",
+        "观点与趋势",
         "其他"
     ]
     
@@ -290,9 +362,9 @@ def format_output(news_list, categories, start_date, end_date):
         lines.append("")
         
         for i, idx in enumerate(indices, 1):
-            if idx < 1 or idx > len(news_list):
+            if idx < 0 or idx >= len(news_list):
                 continue
-            news = news_list[idx - 1]
+            news = news_list[idx]
             title = news["title"]
             link = news["link"]
             biz_name = news.get("biz_name", "")
@@ -304,7 +376,7 @@ def format_output(news_list, categories, start_date, end_date):
         
         lines.append("")
     
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
