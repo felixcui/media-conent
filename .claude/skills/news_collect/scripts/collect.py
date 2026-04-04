@@ -25,6 +25,11 @@ def is_wechat_article(url):
     return 'mp.weixin.qq.com' in url or 'weixin.qq.com' in url
 
 
+def is_twitter_url(url):
+    """判断是否是 Twitter/X 链接"""
+    return bool(re.match(r'https?://(x\.com|twitter\.com)/\w+/status/\d+', url))
+
+
 def is_feishu_wiki(url):
     """判断是否是飞书 Wiki 链接"""
     return 'feishu.cn/wiki' in url or 'larkoffice.com/wiki' in url
@@ -168,8 +173,44 @@ def fetch_feishu_wiki(url):
     return fetch_feishu_wiki_direct(url)
 
 
+def fetch_twitter_tweet(url):
+    """使用 twitter-cli 获取推文内容"""
+    try:
+        # 使用 -c compact 模式减少 token 消耗
+        result = subprocess.run(
+            ["twitter", "tweet", url, "--json"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout.strip())
+            tweet_list = data.get("data", data)
+            if isinstance(tweet_list, list) and tweet_list:
+                tweet_data = tweet_list[0]
+            else:
+                tweet_data = tweet_list
+            return {
+                "title": f"@{tweet_data.get('author', {}).get('username', '')} 的推文",
+                "author": tweet_data.get("author", {}).get("name", ""),
+                "publish_time": format_timestamp(tweet_data.get("createdAt", "")) if tweet_data.get("createdAt") else "",
+                "content": tweet_data.get("text", ""),
+                "url": url
+            }
+        else:
+            return {"error": f"twitter-cli 获取失败: {result.stderr.strip() or '未知错误'}"}
+    except FileNotFoundError:
+        return {"error": "twitter-cli 未安装，请运行: uv tool install twitter-cli"}
+    except subprocess.TimeoutExpired:
+        return {"error": "twitter-cli 超时"}
+    except Exception as e:
+        return {"error": f"twitter-cli 错误: {str(e)}"}
+
+
 def fetch_article(url):
     """统一抓取文章接口"""
+    if is_twitter_url(url):
+        return fetch_twitter_tweet(url)
     if is_wechat_article(url):
         return fetch_wechat_article(url)
     elif is_feishu_wiki(url):

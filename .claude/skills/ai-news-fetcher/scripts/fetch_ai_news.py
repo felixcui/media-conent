@@ -127,21 +127,43 @@ def classify_news_with_ai(news_list):
     try:
         # 使用 openclaw 命令行工具调用 AI 模型
         env = os.environ.copy()
-        env['OPENCLAW_MODEL'] = 'bailian/glm-5'
+        env['OPENCLAW_MODEL'] = 'zai/glm-5'
         
         cmd = [
             "openclaw",
             "agent",
+            "--session-id", "ai-news-classifier",
+            "--json",
             "--message", prompt
         ]
         
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60, env=env)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120, env=env)
         
         if result.returncode == 0:
             response_text = result.stdout.decode('utf-8').strip()
+            # --json 模式返回 JSON，提取 payloads[0].text
+            try:
+                outer = json.loads(response_text)
+                inner_text = outer["result"]["payloads"][0]["text"]
+                response_text = inner_text.strip()
+            except (json.JSONDecodeError, KeyError, IndexError):
+                pass  # 非 JSON 包装，继续用原始文本
+            # 提取第一个完整的 JSON 对象
             start_idx = response_text.find('{')
-            end_idx = response_text.rfind('}') + 1
-            if start_idx != -1 and end_idx > start_idx:
+            if start_idx == -1:
+                print(f"AI 分类返回无JSON: {response_text[:200]}")
+            else:
+                # 用括号匹配找到第一个完整 JSON 对象
+                depth = 0
+                end_idx = start_idx
+                for i in range(start_idx, len(response_text)):
+                    if response_text[i] == '{':
+                        depth += 1
+                    elif response_text[i] == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end_idx = i + 1
+                            break
                 json_text = response_text[start_idx:end_idx]
                 categories = json.loads(json_text)
                 # 验证分类结果
@@ -190,6 +212,8 @@ def classify_by_keywords(news_list):
             "编程助手", "代码生成", "IDE插件", "智能编程", "编程技巧",
             "软件工程", "研发效能", "DevOps", "CI/CD", "代码审查",
             "从没写过代码", "干掉了一个估算团队",
+            "AI Coding", "AICoding", "AI编程", "编程工具",
+            "Coding", "coding", "Code",
         ]),
         # AI模型与技术
         ("AI模型与技术", [
@@ -226,7 +250,7 @@ def classify_by_keywords(news_list):
             "开卖", "送到", "正式", "答案", "方案",
             "落地", "实践", "业务", "应用",
             "Agent", "智能体", "SaaS", "平台",
-            "实测", "体验", "试用", "评测",
+            "体验", "试用", "评测",
         ]),
     ]
 
@@ -348,7 +372,6 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
         "AI产品与应用",
         "AI行业动态",
         "观点与趋势",
-        "其他"
     ]
     
     for category in category_order:
@@ -373,7 +396,14 @@ def format_news_markdown(news_list, categories, start_date, end_date, platform="
         
         lines.append("")
     
-    return "\n".join(lines)
+    # 生成被过滤资讯的列表
+    filtered = []
+    if "其他" in categories and categories["其他"]:
+        for idx in categories["其他"]:
+            news = news_list[idx]
+            filtered.append(f"• {news['title']}")
+    
+    return "\n".join(lines), filtered
 
 
 def get_news_summary(days: int = 1, classify: bool = True, platform: str = "feishu") -> str:
@@ -419,7 +449,16 @@ def get_news_summary(days: int = 1, classify: bool = True, platform: str = "feis
         else:
             categories = {"AI相关": list(range(len(news_list)))}
 
-        return format_news_markdown(news_list, categories, yesterday, today, platform)
+        result, filtered = format_news_markdown(news_list, categories, yesterday, today, platform)
+        
+        # 输出过滤的资讯到 stderr，方便 cron agent 通知用户
+        if filtered:
+            import sys
+            print(f"\n🚫 以下 {len(filtered)} 条资讯已被过滤（非AI相关）：", file=sys.stderr)
+            for item in filtered:
+                print(f"  {item}", file=sys.stderr)
+        
+        return result
 
     except Exception as e:
         return f"""## ❌ 获取 AI 资讯日报失败
