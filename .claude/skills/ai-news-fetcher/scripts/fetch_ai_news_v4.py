@@ -8,6 +8,11 @@ import json
 import os
 from datetime import datetime, timedelta
 
+# 需要过滤的标题关键词（直接跳过，不进入分类）
+EXCLUDED_TITLE_KEYWORDS = [
+    "招聘", "诚聘", "招贤", "加入我们", "简历", "猎头",
+]
+
 # 需要过滤的公众号ID列表
 EXCLUDED_BIZ_IDS = {
     "3092970861",
@@ -26,7 +31,7 @@ RSS_API_BASE = os.getenv("AI_NEWS_API_BASE", "https://wexinrss.zeabur.app")
 
 # 智谱 API 配置
 ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY", "07edc94107ae4f8cb08010eaf2aede1f.Sn7KC0rYwqySG2PK")
-ZHIPU_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+ZHIPU_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4"
 
 
 def classify_with_ai(news_list):
@@ -44,13 +49,15 @@ def classify_with_ai(news_list):
 
 分类规则（严格使用以下6个分类名称）：
 
-**AI编程与开发** 💻 - 编程工具、软件开发、工程实践
+**AI编程与开发** 💻 - 编程工具、软件开发、工程实践、软件工程、研发效能、DevOps、架构设计、工程规范、代码审查、测试部署
 **AI模型与技术** 🧠 - 模型发布、技术突破、算法研究
 **AI内容创作** 🎨 - AI生成内容、创意工具、创作应用
 **AI产品与应用** 🚀 - AI产品、企业应用、行业落地
 **AI行业动态** 📈 - 融资、人事、公司动态、行业事件
 **观点与趋势** 💡 - 观点、趋势分析、深度思考
-**其他** 📂 - 招聘、非AI内容等
+**其他** 📂 - 仅限完全无法归类的非AI内容，尽量少用此分类
+
+⚠️ 重要：宁可归入最接近的AI相关分类，也不要归入「其他」。所有与AI、科技、互联网相关的内容都应归入上面6个分类。
 
 请以 JSON 格式输出，格式如下：
 {{"AI编程与开发": [0, 3, 5], "AI模型与技术": [1, 2], ...}}
@@ -80,7 +87,7 @@ def classify_with_ai(news_list):
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.1,
-                    max_tokens=8000
+                    max_tokens=16384
                 )
                 
                 content = response.choices[0].message.content
@@ -179,8 +186,9 @@ def classify_by_keywords(news_list):
         ("AI编程与开发", [
             "Vibe Coding", "Claude Code", "Cursor", "GitHub Copilot",
             "编程助手", "代码生成", "IDE插件", "智能编程", "编程技巧",
-            "软件工程", "研发效能", "DevOps", "CI/CD", "代码审查",
+            "软件工程", "工程规范", "工程实践", "研发效能", "DevOps", "CI/CD", "代码审查",
             "编码代理", "AI编码", "编程代理", "编码工具", "开源项目",
+            "架构设计", "测试", "部署", "Harness", "Agent Harness",
             "从没写过代码", "干掉了一个估算团队",
         ]),
         ("AI模型与技术", [
@@ -214,6 +222,7 @@ def classify_by_keywords(news_list):
             "落地", "实践", "业务", "应用",
             "Agent", "智能体", "SaaS", "平台",
             "实测", "体验", "试用", "评测",
+            "Skill", "技能", "知识库", "教程", "保姆级",
         ]),
     ]
 
@@ -301,6 +310,9 @@ def get_news_summary(days: int = 1) -> str:
                     if title and link:
                         if len(title) > 200 or title.count('\\n') > 1 or title.count('。') > 3:
                             continue
+                        # 过滤招聘类文章
+                        if any(kw in title for kw in EXCLUDED_TITLE_KEYWORDS):
+                            continue
                         news_list.append({
                             "title": title,
                             "link": link,
@@ -316,8 +328,18 @@ def get_news_summary(days: int = 1) -> str:
 """
 
         print(f"📰 获取到 {len(news_list)} 条资讯，开始分类...")
+        print(f"🔍 智谱 API Key: {ZHIPU_API_KEY[:6]}...{ZHIPU_API_KEY[-4:]}")
+        print(f"🔍 智谱 Base URL: {ZHIPU_BASE_URL}")
+        print(f"🔍 模型: glm-5-turbo")
         
         categories = classify_with_ai(news_list)
+        
+        # 统计分类结果
+        total_classified = sum(len(v) for v in categories.values())
+        print(f"📊 分类完成统计: 总计 {len(news_list)} 条, 已分类 {total_classified} 条")
+        for cat, items in categories.items():
+            if items:
+                print(f"  - {cat}: {len(items)} 条")
         
         return format_output(news_list, categories, yesterday, today)
 
