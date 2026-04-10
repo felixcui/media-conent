@@ -17,6 +17,12 @@ from pathlib import Path
 WEBHOOK_URL = "https://www.feishu.cn/flow/api/trigger-webhook/4ebcdc4fd26c38187fdd74434d17a916"
 OPENCLAW_AGENT = "fs_news_claw"  # agent ID
 
+# IMA 知识库配置
+IMA_KB_ENABLED = True
+IMA_KB_ID = "AGoC5oEY8FP12VotR1kff00HlmJyh3RP6Do9vCGKpGQ="  # AI资讯知识库
+IMA_CONFIG_PATH = Path.home() / ".config" / "ima"
+IMA_API_BASE = "https://ima.qq.com"
+
 
 # ============ 内容抓取 ============
 
@@ -420,6 +426,62 @@ def push_to_feishu(url, title, summary, webhook_url=None):
         return False, {"error": str(e)}
 
 
+# ============ IMA 知识库 ============
+
+def load_ima_credentials():
+    """加载 IMA 凭证"""
+    client_id = ""
+    api_key = ""
+    
+    # 从配置文件读取
+    id_file = IMA_CONFIG_PATH / "client_id"
+    key_file = IMA_CONFIG_PATH / "api_key"
+    if id_file.exists():
+        client_id = id_file.read_text().strip()
+    if key_file.exists():
+        api_key = key_file.read_text().strip()
+    
+    return client_id, api_key
+
+
+def add_to_ima_kb(url):
+    """添加微信公众号文章到 IMA 知识库"""
+    client_id, api_key = load_ima_credentials()
+    
+    if not client_id or not api_key:
+        print("   ⚠️  IMA 凭证未配置，跳过")
+        return
+    
+    payload = json.dumps({
+        "knowledge_base_id": IMA_KB_ID,
+        "urls": [url]
+    }).encode('utf-8')
+    
+    req = urllib.request.Request(
+        f"{IMA_API_BASE}/openapi/wiki/v1/import_urls",
+        data=payload,
+        headers={
+            'Content-Type': 'application/json',
+            'ima-openapi-clientid': client_id,
+            'ima-openapi-apikey': api_key,
+        },
+        method='POST'
+    )
+    
+    with urllib.request.urlopen(req, timeout=30) as response:
+        result = json.loads(response.read().decode('utf-8'))
+    
+    if result.get('code') == 0:
+        results = result.get('data', {}).get('results', {})
+        for item in results.values():
+            if item.get('ret_code') == 0:
+                print("   ✅ 已添加到 IMA「AI资讯」知识库")
+            else:
+                print(f"   ⚠️  添加失败: {item.get('errmsg', '未知错误')}")
+    else:
+        print(f"   ⚠️  API 错误: {result.get('msg', '未知错误')}")
+
+
 # ============ 主流程 ============
 
 def main():
@@ -485,6 +547,14 @@ def main():
         else:
             print(f"❌ 推送失败: {response}")
             sys.exit(1)
+    
+    # 5. 添加到 IMA 知识库
+    if IMA_KB_ENABLED and not args.no_push and is_wechat_article(args.url):
+        print("\n📚 添加到 IMA 知识库...")
+        try:
+            add_to_ima_kb(args.url)
+        except Exception as e:
+            print(f"⚠️  IMA 知识库添加失败: {e}")
     
     print("\n✨ 完成!")
 

@@ -302,75 +302,123 @@ def classify_by_keywords(news_list):
     return categories
 
 
-def get_news_summary(days: int = 1) -> str:
-    """获取并分类汇总 AI 资讯"""
+# 缓存目录
+_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.cache')
+
+
+def _get_cache_path(days: int) -> str:
+    """获取缓存文件路径（按日期和天数命名，同一天内复用）"""
+    date_str = datetime.now().strftime('%Y%m%d')
+    return os.path.join(_CACHE_DIR, f'news_cache_{date_str}_d{days}.json')
+
+
+def _load_cache(cache_path: str):
+    """加载缓存，返回 (news_list, categories) 或 None"""
+    if not os.path.exists(cache_path):
+        return None
+    try:
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if data.get('news_list') and data.get('categories'):
+            print(f"📦 加载分类缓存: {cache_path}")
+            return data['news_list'], data['categories']
+    except Exception:
+        pass
+    return None
+
+
+def _save_cache(cache_path: str, news_list: list, categories: dict):
+    """保存分类结果到缓存"""
+    os.makedirs(_CACHE_DIR, exist_ok=True)
+    try:
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump({'news_list': news_list, 'categories': categories}, f, ensure_ascii=False)
+        print(f"💾 分类缓存已保存: {cache_path}")
+    except Exception as e:
+        print(f"⚠️ 缓存保存失败: {e}")
+
+
+def get_news_summary(days: int = 1, use_cache: bool = True) -> str:
+    """获取并分类汇总 AI 资讯（支持缓存复用分类结果）"""
     
     today = datetime.now()
     yesterday = today - timedelta(days=days)
     after = yesterday.strftime("%Y%m%d")
     before = today.strftime("%Y%m%d")
-    url = f"{RSS_API_BASE}/api/query?k={RSS_API_KEY}&content=0&before={before}&after={after}"
 
-    try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        data = response.json()
+    # 尝试加载缓存
+    cache_path = _get_cache_path(days)
+    cached = _load_cache(cache_path) if use_cache else None
 
-        news_list = []
-        if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
-            for item in data['data']:
-                if isinstance(item, dict):
-                    biz_id = str(item.get("biz_id", ""))
-                    if biz_id in EXCLUDED_BIZ_IDS:
-                        continue
+    if cached:
+        news_list, categories = cached
+        print(f"📦 使用缓存的分类结果（{len(news_list)} 条资讯）")
+    else:
+        url = f"{RSS_API_BASE}/api/query?k={RSS_API_KEY}&content=0&before={before}&after={after}"
 
-                    title = item.get("title", "")
-                    link = item.get("link", "")
-                    biz_name = item.get("biz_name", "")
-                    
-                    if title and link:
-                        if len(title) > 200 or title.count('\\n') > 1 or title.count('。') > 3:
+        try:
+            response = requests.get(url, timeout=30, verify=False)
+            response.raise_for_status()
+            data = response.json()
+
+            news_list = []
+            if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
+                for item in data['data']:
+                    if isinstance(item, dict):
+                        biz_id = str(item.get("biz_id", ""))
+                        if biz_id in EXCLUDED_BIZ_IDS:
                             continue
-                        # 过滤招聘类文章
-                        if any(kw in title for kw in EXCLUDED_TITLE_KEYWORDS):
-                            continue
-                        news_list.append({
-                            "title": title,
-                            "link": link,
-                            "biz_name": biz_name
-                        })
 
-        if not news_list:
-            return f"""## AI 资讯汇总
+                        title = item.get("title", "")
+                        link = item.get("link", "")
+                        biz_name = item.get("biz_name", "")
+                        
+                        if title and link:
+                            if len(title) > 200 or title.count('\\n') > 1 or title.count('。') > 3:
+                                continue
+                            # 过滤招聘类文章
+                            if any(kw in title for kw in EXCLUDED_TITLE_KEYWORDS):
+                                continue
+                            news_list.append({
+                                "title": title,
+                                "link": link,
+                                "biz_name": biz_name
+                            })
+
+            if not news_list:
+                return f"""## AI 资讯汇总
 
 > 📅 `{yesterday.strftime('%Y-%m-%d')}` - `{today.strftime('%Y-%m-%d')}`
 
 😊 暂无AI相关资讯，请稍后再来查看～
 """
 
-        print(f"📰 获取到 {len(news_list)} 条资讯，开始分类...")
-        print(f"🔍 智谱 API Key: {ZHIPU_API_KEY[:6]}...{ZHIPU_API_KEY[-4:]}")
-        print(f"🔍 智谱 Base URL: {ZHIPU_BASE_URL}")
-        print(f"🔍 模型: glm-5-turbo")
+            print(f"📰 获取到 {len(news_list)} 条资讯，开始分类...")
+            print(f"🔍 智谱 API Key: {ZHIPU_API_KEY[:6]}...{ZHIPU_API_KEY[-4:]}")
+            print(f"🔍 智谱 Base URL: {ZHIPU_BASE_URL}")
+            print(f"🔍 模型: glm-5-turbo")
+            
+            categories = classify_with_ai(news_list)
+            
+            # 保存缓存
+            _save_cache(cache_path, news_list, categories)
         
-        categories = classify_with_ai(news_list)
-        
-        # 统计分类结果
-        total_classified = sum(len(v) for v in categories.values())
-        print(f"📊 分类完成统计: 总计 {len(news_list)} 条, 已分类 {total_classified} 条")
-        for cat, items in categories.items():
-            if items:
-                print(f"  - {cat}: {len(items)} 条")
-        
-        return format_output(news_list, categories, yesterday, today)
-
-    except Exception as e:
-        return f"""## ❌ 获取 AI 资讯失败
+        except Exception as e:
+            return f"""## ❌ 获取 AI 资讯失败
 
 > 错误信息：`{str(e)}`
 
 请检查网络连接或 API 配置后重试。
 """
+
+    # 统计分类结果
+    total_classified = sum(len(v) for v in categories.values())
+    print(f"📊 分类统计: 总计 {len(news_list)} 条, 已分类 {total_classified} 条")
+    for cat, items in categories.items():
+        if items:
+            print(f"  - {cat}: {len(items)} 条")
+    
+    return format_output(news_list, categories, yesterday, today)
 
 
 def format_output(news_list, categories, start_date, end_date):
