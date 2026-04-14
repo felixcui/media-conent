@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-AI 资讯获取与分类脚本 V4 最终版
-使用智谱 AI 进行智能分类
+AI 资讯获取与分类脚本 V5 - 纯关键词分类版
 """
 import requests
 import json
@@ -29,170 +28,15 @@ EXCLUDED_BIZ_IDS = {
 RSS_API_KEY = os.getenv("AI_NEWS_API_KEY", "5O5H1c1NsT")
 RSS_API_BASE = os.getenv("AI_NEWS_API_BASE", "https://wexinrss.zeabur.app")
 
-# 智谱 API 配置
-ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY", "07edc94107ae4f8cb08010eaf2aede1f.Sn7KC0rYwqySG2PK")
-ZHIPU_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4"
 
-
-def classify_with_ai(news_list):
-    """使用智谱 AI 进行智能分类"""
-    
+def classify_news(news_list):
+    """纯关键词分类（按优先级匹配）"""
     if not news_list:
         return {}
-    
-    print(f"🤖 使用智谱 AI 分类 {len(news_list)} 条资讯...")
-    
-    # 准备资讯标题列表
-    news_text = "\n".join([f"{i+1}. {item['title']}" for i, item in enumerate(news_list)])
-    
-    prompt = f"""请对以下 {len(news_list)} 条资讯进行智能分类。
 
-分类规则（严格使用以下6个分类名称，参考关键词判断归属）：
+    print(f"🏷️  关键词规则分类 {len(news_list)} 条资讯...")
 
-**AI编程与开发** 💻
-- 关键词参考：Vibe Coding, Claude Code, Cursor, GitHub Copilot, 编程助手, 代码生成, IDE插件, 智能编程, 编程技巧, 软件工程, 工程规范, 工程实践, 研发效能, DevOps, CI/CD, 代码审查, 编码代理, AI编码, 编程代理, 编码工具, 开源项目, 架构设计, 测试, 部署, Harness, Agent Harness
-- 适用内容：编程工具、软件开发、工程实践、软件工程、研发效能、DevOps、架构设计、工程规范、代码审查、测试部署、AI辅助编程
-
-**AI模型与技术** 🧠
-- 关键词参考：新论文, 论文, 顶会, CVPR, ICLR, AAAI, NeurIPS, ICML, 模型架构, 算法, 推理优化, 微调, 蒸馏, 量化, 多模态, Transformer, Benchmark, 评测, 性能直逼, 模型发布, 版本更新, 能力提升
-- 适用内容：模型发布、技术突破、算法研究、学术成果、模型评测、推理/训练优化
-
-**AI内容创作** 🎨
-- 关键词参考：短剧, 视频生成, AI视频, AI绘画, AI写作, 图像生成, 内容创作, 创作工具, 生成式, Seedance, Sora, Midjourney, Stable Diffusion, 视频制作, 内容生产
-- 适用内容：AI生成内容（文本/图片/视频/音频）、创意工具、创作应用、AIGC
-
-**AI产品与应用** 🚀
-- 关键词参考：发布会, 正式发布, 上线, 推出, 开卖, 方案, 落地, 实践, 业务, 应用, Agent, 智能体, SaaS, 平台, 实测, 体验, 试用, 评测, Skill, 技能, 知识库, 教程, 保姆级
-- 适用内容：AI产品发布、企业应用、行业落地、工具测评、教程指南、平台/智能体/SaaS产品
-
-**AI行业动态** 📈
-- 关键词参考：融资, 投资, 万美元, 亿人民币, 估值, IPO, 上市, 裁员, 入职, 离职, 人事变动, 任命, 辞职, 收购, 并购, 合作, 战略, 布局, 创业者, 独角兽, 巨头
-- 适用内容：融资、投资、人事变动、公司并购/合作、行业事件、市场动态
-
-**观点与趋势** 💡
-- 关键词参考：观点, 趋势, 观察, 思考, 分析, 未来, 预测, 影响, 变革, 重塑, 感想, 随笔
-- 适用内容：观点文章、趋势分析、深度思考、行业观察、评论
-
-**其他** 📂 - 仅限完全无法归类的非AI内容，尽量少用此分类
-
-⚠️ 重要规则：
-1. 宁可归入最接近的AI相关分类，也不要归入「其他」。所有与AI、科技、互联网相关的内容都应归入上面6个分类。
-2. 一条资讯只能归入一个分类，选择最匹配的。
-3. 包含招聘、直播预告、倒计时等推广性质的内容归入「其他」。
-
-请以 JSON 格式输出，格式如下：
-{{"AI编程与开发": [0, 3, 5], "AI模型与技术": [1, 2], ...}}
-
-待分类资讯：
-{news_text}"""
-    
-    try:
-        from openai import OpenAI
-        
-        client = OpenAI(
-            api_key=ZHIPU_API_KEY,
-            base_url=ZHIPU_BASE_URL
-        )
-        
-        # 重试机制
-        import time
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                print(f"  尝试 {attempt + 1}/{max_retries}...")
-                
-                response = client.chat.completions.create(
-                    model="glm-5-turbo",
-                    messages=[
-                        {"role": "system", "content": "分类助手，只输出JSON。"},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.1,
-                    max_tokens=16384
-                )
-                
-                content = response.choices[0].message.content
-                
-                # 提取 JSON
-                start_idx = content.find('{')
-                end_idx = content.rfind('}') + 1
-                if start_idx != -1 and end_idx > start_idx:
-                    json_text = content[start_idx:end_idx]
-                    categories = json.loads(json_text)
-                    
-                    # 转换分类名称到标准格式
-                    mapped_categories = {}
-                    cat_mapping = {
-                        "AI编程与开发": "AI编程与开发",
-                        "AI模型与技术": "AI模型与技术",
-                        "AI内容创作": "AI内容创作",
-                        "AI产品与应用": "AI产品与应用",
-                        "AI行业动态": "AI行业动态",
-                        "观点与趋势": "观点与趋势",
-                        "其他": "其他"
-                    }
-                    
-                    for cat_name, indices in categories.items():
-                        if cat_name in cat_mapping:
-                            mapped_categories[cat_mapping[cat_name]] = indices
-                    
-                    print(f"✅ 智谱 AI 分类完成")
-                    return validate_categories(mapped_categories, len(news_list))
-                
-                print(f"⚠️ 智谱 API 返回格式不正确，使用关键词分类")
-                return classify_by_keywords(news_list)
-                
-            except Exception as e:
-                error_msg = str(e)
-                if "429" in error_msg or "rate limit" in error_msg.lower():
-                    if attempt < max_retries - 1:
-                        wait_time = (attempt + 1) * 2
-                        print(f"  ⏳ 请求频率过高，等待 {wait_time} 秒后重试...")
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        print(f"  ⚠️ 重试次数用尽，使用关键词分类")
-                        return classify_by_keywords(news_list)
-                else:
-                    raise
-        
-        return classify_by_keywords(news_list)
-        
-    except ImportError:
-        print("⚠️ 未安装 openai 库，使用关键词分类")
-        return classify_by_keywords(news_list)
-    except Exception as e:
-        print(f"⚠️ 智谱 AI 分类失败: {str(e)[:100]}，使用关键词分类")
-        return classify_by_keywords(news_list)
-
-
-def validate_categories(categories, total_count):
-    """验证分类结果是否有效"""
-    if not categories:
-        return {}
-
-    classified_indices = set()
-    for cat_name, indices in categories.items():
-        if isinstance(indices, list):
-            for idx in indices:
-                if isinstance(idx, int) and 0 <= idx < total_count:
-                    classified_indices.add(idx)
-
-    if len(classified_indices) == total_count:
-        return categories
-
-    missing = [i for i in range(total_count) if i not in classified_indices]
-    if missing:
-        if "其他" not in categories:
-            categories["其他"] = []
-        categories["其他"].extend(missing)
-
-    return categories
-
-
-def classify_by_keywords(news_list):
-    """智能关键词分类方案（6分类新版）"""
-    classified_indices = set()
+    classified = set()
     categories = {
         "AI编程与开发": [],
         "AI模型与技术": [],
@@ -203,101 +47,155 @@ def classify_by_keywords(news_list):
         "其他": [],
     }
 
-    rules = [
-        ("AI编程与开发", [
-            "Vibe Coding", "Claude Code", "Cursor", "GitHub Copilot",
-            "编程助手", "代码生成", "IDE插件", "智能编程", "编程技巧",
-            "软件工程", "工程规范", "工程实践", "研发效能", "DevOps", "CI/CD", "代码审查",
-            "编码代理", "AI编码", "编程代理", "编码工具", "开源项目",
-            "架构设计", "测试", "部署", "Harness", "Agent Harness",
-            "从没写过代码", "干掉了一个估算团队",
-        ]),
-        ("AI模型与技术", [
-            "新论文", "论文", "顶会", "CVPR", "ICLR", "AAAI", "NeurIPS", "ICML",
-            "模型架构", "算法", "推理优化", "微调", "蒸馏", "量化",
-            "多模态", "Transformer", "Benchmark", "评测",
-            "性能直逼", "模型发布", "版本更新", "能力提升",
-        ]),
-        ("AI内容创作", [
-            "短剧", "视频生成", "AI视频", "AI绘画", "AI写作",
-            "图像生成", "内容创作", "创作工具", "生成式",
-            "Seedance", "Sora", "Midjourney", "Stable Diffusion",
-            "做AI视频", "AI做视频", "视频制作", "内容生产",
-        ]),
-        ("AI行业动态", [
-            "融资", "投资", "万美元", "亿人民币", "估值", "IPO", "上市",
-            "裁员", "入职", "离职", "人事变动", "任命", "辞职",
-            "收购", "并购", "加入", "联手", "合作",
-            "战争", "杀入", "砸", "亿", "战略", "布局",
-            "创业者", "独角兽", "巨头",
-        ]),
-        ("观点与趋势", [
-            "观点", "趋势", "观察", "思考", "分析",
-            "未来", "预测", "影响", "变革", "重塑",
-            "我却", "想要", "感想", "随笔",
-            "改造", "需要的不止是", "的边界",
-        ]),
-        ("AI产品与应用", [
-            "发布会", "正式发布", "上线", "推出",
-            "开卖", "送到", "正式", "答案", "方案",
-            "落地", "实践", "业务", "应用",
-            "Agent", "智能体", "SaaS", "平台",
-            "实测", "体验", "试用", "评测",
-            "Skill", "技能", "知识库", "教程", "保姆级",
-        ]),
-    ]
-
+    # 非AI内容关键词
     non_ai_keywords = [
         "招聘", "诚聘", "招贤", "加入我们", "简历",
         "直播预告", "预告", "倒计时", "敬请期待",
     ]
 
+    # 规则定义：每个元组是 (分类, [(关键词列表, 权重), ...])
+    # 权重越高越优先匹配，用于同一条匹配多个分类时决定归属
+    # 高优先级规则先定义
+    rules = [
+        # === 第一层：强信号，几乎不会误判 ===
+        ("AI模型与技术", [
+            # 顶会/论文
+            ("CVPR", 10), ("ICLR", 10), ("NeurIPS", 10), ("AAAI", 10), ("ICML", 10), ("顶会", 10),
+            # 技术指标
+            ("SOTA", 9), ("Benchmark", 9), ("技术报告", 9), ("综述", 9),
+            # VLA/具身技术
+            ("VLA", 8), ("具身", 7),
+            # 算法/模型研究
+            ("微调", 7), ("蒸馏", 7), ("量化", 7), ("推理优化", 7), ("多模态", 7), ("Transformer", 7),
+            ("模型架构", 7), ("算法", 6), ("数据集", 7),
+            # 模型发布/评测
+            ("性能直逼", 8), ("模型发布", 8), ("版本更新", 8),
+            ("高分神话", 7), ("最强模型", 7),
+        ]),
+        ("AI编程与开发", [
+            # 编程工具（精确匹配）
+            ("Claude Code", 10), ("GitHub Copilot", 10), ("Vibe Coding", 10), ("Vibe Design", 10),
+            ("Cursor", 9), ("MCP", 9), ("CLI", 9), ("Copilot", 9),
+            # 编程相关
+            ("代码生成", 8), ("IDE插件", 8), ("智能编程", 8), ("编程助手", 8),
+            ("编码代理", 8), ("AI编码", 8), ("编程代理", 8), ("编码工具", 8),
+            ("软件工程", 8), ("工程规范", 8), ("工程实践", 8), ("研发效能", 8),
+            ("DevOps", 8), ("CI/CD", 8), ("代码审查", 8),
+            ("架构设计", 7), ("Harness", 7), ("开源项目", 7),
+            # 开发框架/平台
+            ("开发平台", 7), ("Agent框架", 7), ("从零开始设计", 7), ("mini-OpenClaw", 10),
+            ("前端盘点", 7),
+        ]),
+        ("AI内容创作", [
+            # AI视频工具（精确匹配）
+            ("Seedance", 10), ("Sora", 9), ("Midjourney", 9), ("Stable Diffusion", 9),
+            ("Vidu", 9), ("LibTV", 10),
+            # 创作类型
+            ("短剧", 8), ("漫剧", 8), ("3D模型", 8), ("视频生成", 8),
+            ("AI视频", 8), ("AI绘画", 8), ("AI写作", 8), ("图像生成", 8),
+            ("内容创作", 7), ("创作工具", 7), ("生成式", 7),
+            ("做AI视频", 9), ("AI做视频", 9), ("视频制作", 7), ("内容生产", 7),
+            # AI视频进化
+            ("AI视频的进化速度", 9), ("AI视频进化", 9),
+        ]),
+        ("AI行业动态", [
+            # 融资/收购
+            ("收购", 8), ("并购", 8), ("亿美元", 8), ("亿人民币", 8), ("轮融资", 8), ("估值", 7),
+            ("IPO", 8), ("上市", 7), ("裁员", 8), ("跳槽", 8), ("入职", 7), ("离职", 7),
+            # 快讯/速递
+            ("速递", 9), ("早知道", 9), ("快讯", 9),
+            # 事件新闻
+            ("遇袭", 9), ("怒火", 8), ("反AI", 8),
+            # 市场数据
+            ("数据 202", 8), ("GenAI网页产品数据", 9),
+            # 活动
+            ("黑客松", 7), ("创造营", 7), ("晚餐", 6),
+            # 行业人物/公司动作
+            ("创业者", 7), ("独角兽", 7),
+        ]),
+        ("AI产品与应用", [
+            # 测评/体验
+            ("实测", 9), ("一手实测", 10), ("保姆级", 9),
+            ("教程", 8), ("知识库", 7), ("自动化", 6),
+            ("Prompt", 7),
+            # 产品发布
+            ("正式发布", 8), ("开卖", 8),
+            ("机器人", 7), ("AI眼镜", 9), ("智能眼镜", 9),
+            # 产品体验/对比
+            ("体验", 6),
+            # 产品更新汇总
+            ("所有更新一次性看懂", 9), ("一次性看懂", 9),
+            # 产品工作流/方案
+            ("工作流", 6),
+        ]),
+        ("观点与趋势", [
+            # 明确的观点信号
+            ("思考", 7), ("再思考", 9), ("重新认识", 8), ("观察", 6),
+            ("趋势", 7), ("预测", 7), ("影响", 6), ("变革", 7), ("重塑", 7),
+            ("暗线", 9), ("后背发凉", 9), ("神仙打架", 8),
+            ("改造", 6), ("需要的不止是", 7), ("的边界", 6),
+            ("感想", 7), ("随笔", 7),
+            # 行业观察/现象
+            ("孵化器", 7), ("洗脑", 7), ("废纸", 6),
+            # 观点文章常见模式
+            ("我低估了", 8), ("我看到了", 7),
+            ("为什么模型永远无法", 8), ("的真相", 7),
+            ("深度解析", 6), ("深度研究", 7),
+            ("深度思考", 7),
+        ]),
+    ]
+
     for i, news in enumerate(news_list):
-        if i in classified_indices:
+        if i in classified:
             continue
 
         title = news["title"]
-        classified = False
+        matched = False
 
-        for keyword in non_ai_keywords:
-            if keyword in title:
+        # 检查非AI内容
+        for kw in non_ai_keywords:
+            if kw in title:
                 categories["其他"].append(i)
-                classified_indices.add(i)
-                classified = True
+                classified.add(i)
+                matched = True
                 break
-
-        if classified:
+        if matched:
             continue
 
-        for category, keywords in rules:
-            for keyword in keywords:
-                if keyword in title:
-                    categories[category].append(i)
-                    classified_indices.add(i)
-                    classified = True
-                    break
-            if classified:
-                break
+        # 用加权规则匹配：收集所有匹配，取权重最高的分类
+        best_cat = None
+        best_weight = 0
 
-        if not classified:
-            if any(x in title for x in ["编码", "编程", "代码", "开源项目"]):
+        for cat, keyword_list in rules:
+            for kw, weight in keyword_list:
+                if kw in title:
+                    if weight > best_weight:
+                        best_weight = weight
+                        best_cat = cat
+                    # 不 break，继续找更高权重的
+
+        if best_cat:
+            categories[best_cat].append(i)
+            classified.add(i)
+            matched = True
+
+        if not matched:
+            # 兜底启发式
+            if any(x in title for x in ["编码", "编程", "代码", "开源", "开发框架"]):
                 categories["AI编程与开发"].append(i)
-                classified_indices.add(i)
-            elif any(x in title for x in ["模型架构", "算法创新", "Benchmark", "论文", "顶会"]):
-                categories["AI模型与技术"].append(i)
-                classified_indices.add(i)
-            elif any(x in title for x in ["发布", "上线", "推出", "实测", "体验"]):
-                categories["AI产品与应用"].append(i)
-                classified_indices.add(i)
             elif any(x in title for x in ["视频", "图像", "绘画", "写作", "创作", "生成"]):
                 categories["AI内容创作"].append(i)
-                classified_indices.add(i)
-            elif any(x in title for x in ["融资", "投资", "收购", "上市", "亿"]):
-                categories["AI行业动态"].append(i)
-                classified_indices.add(i)
-            else:
+            elif any(x in title for x in ["发布", "上线", "推出", "体验"]):
                 categories["AI产品与应用"].append(i)
-                classified_indices.add(i)
+            elif any(x in title for x in ["模型", "算法", "大模型", "AI"]):
+                categories["AI模型与技术"].append(i)
+            elif any(x in title for x in ["融资", "投资", "收购", "上市", "巨头"]):
+                categories["AI行业动态"].append(i)
+            elif any(x in title for x in ["Agent", "智能体"]):
+                categories["AI产品与应用"].append(i)
+            else:
+                categories["观点与趋势"].append(i)
+            classified.add(i)
 
     return categories
 
@@ -376,7 +274,6 @@ def get_news_summary(days: int = 1, use_cache: bool = True) -> str:
                         if title and link:
                             if len(title) > 200 or title.count('\\n') > 1 or title.count('。') > 3:
                                 continue
-                            # 过滤招聘类文章
                             if any(kw in title for kw in EXCLUDED_TITLE_KEYWORDS):
                                 continue
                             news_list.append({
@@ -394,13 +291,9 @@ def get_news_summary(days: int = 1, use_cache: bool = True) -> str:
 """
 
             print(f"📰 获取到 {len(news_list)} 条资讯，开始分类...")
-            print(f"🔍 智谱 API Key: {ZHIPU_API_KEY[:6]}...{ZHIPU_API_KEY[-4:]}")
-            print(f"🔍 智谱 Base URL: {ZHIPU_BASE_URL}")
-            print(f"🔍 模型: glm-5-turbo")
             
-            categories = classify_with_ai(news_list)
+            categories = classify_news(news_list)
             
-            # 保存缓存
             _save_cache(cache_path, news_list, categories)
         
         except Exception as e:
