@@ -29,3 +29,4 @@ node_modules/
 tmp/
 xhs/
 wechat/
+.claude/skills/baoyu*
