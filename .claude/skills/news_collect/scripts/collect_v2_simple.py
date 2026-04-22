@@ -395,17 +395,27 @@ def generate_summary_rule_based(content, title="", max_length=200):
 def setup_notebooklm_notebook():
     """确保 NotebookLM 笔记本存在"""
     try:
+        # 先确认 notebooklm 命令可用
+        check = subprocess.run(
+            [NOTEBOOKLM_CMD, '--help'],
+            capture_output=True,
+            text=True
+        )
+        if check.returncode != 0:
+            print(f"   ⚠️ NotebookLM 命令不可用: {check.stderr.strip()}")
+            return False
+
         # 查找笔记本
         result = subprocess.run(
             [NOTEBOOKLM_CMD, 'list'],
             capture_output=True,
             text=True
         )
-        
-        if NOTEBOOK_NAME in result.stdout:
+
+        if result.returncode == 0 and NOTEBOOK_NAME in result.stdout:
             print(f"   ✅ NotebookLM 笔记本「{NOTEBOOK_NAME}」已存在")
             return True
-        
+
         # 创建笔记本
         print(f"   创建 NotebookLM 笔记本「{NOTEBOOK_NAME}」...")
         result = subprocess.run(
@@ -413,13 +423,17 @@ def setup_notebooklm_notebook():
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             print(f"   ✅ 笔记本创建成功")
             return True
-        else:
-            print(f"   ⚠️ 笔记本创建失败: {result.stderr}")
-            return False
+
+        stderr = (result.stderr or '').strip() or (result.stdout or '').strip() or '未知错误'
+        print(f"   ⚠️ 笔记本创建失败: {stderr}")
+        return False
+    except FileNotFoundError:
+        print("   ⚠️ NotebookLM 命令未安装，跳过上传")
+        return False
     except Exception as e:
         print(f"   ⚠️ NotebookLM 设置失败: {e}")
         return False
@@ -549,6 +563,42 @@ def create_markdown_content(title, author, url, summary, content):
     return markdown
 
 
+
+
+def sanitize_filename(text):
+    """清理文件名中的特殊字符。"""
+    text = re.sub(r'[\/:*?"<>|]+', '', text)
+    text = re.sub(r'\s+', '', text).strip()
+    text = re.sub(r'[ -]+', '', text)
+    return text
+
+
+def unique_raw_markdown_path(raw_dir, base_name):
+    """避免文件名重复，自动追加序号。"""
+    candidate = raw_dir / f"{base_name}.md"
+    if not candidate.exists():
+        return candidate
+
+    idx = 2
+    while True:
+        candidate = raw_dir / f"{base_name}_{idx}.md"
+        if not candidate.exists():
+            return candidate
+        idx += 1
+
+
+def save_raw_markdown(title, markdown_content):
+    """将抓取到的文章 Markdown 存储到 raw 目录。"""
+    raw_dir = Path('/Users/felix/work/media-conent/raw')
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    today = datetime.now().strftime('%Y-%m-%d')
+    safe_title = sanitize_filename(title)[:80] or 'article'
+    base_name = f"{today}_{safe_title}"
+    file_path = unique_raw_markdown_path(raw_dir, base_name)
+    file_path.write_text(markdown_content, encoding='utf-8')
+    return file_path
+
 # ============ 主流程 ============
 
 def main():
@@ -593,6 +643,11 @@ def main():
         data['content']
     )
     print("✅ Markdown 创建完成")
+
+    # 3.1 存储原始 Markdown
+    print("\n[3.1/5] 存储原始 Markdown...")
+    raw_path = save_raw_markdown(data['title'], markdown_content)
+    print(f"✅ 已保存到: {raw_path}")
     
     # 4. 上传到 NotebookLM
     if args.notebook and not args.no_notebook:
@@ -638,6 +693,7 @@ def main():
         "title": data['title'],
         "author": data.get('author', ''),
         "summary": summary,
+        "raw_markdown_path": str(raw_path),
         "notebooklm": args.notebook
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))
