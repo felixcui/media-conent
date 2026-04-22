@@ -8,6 +8,7 @@ import json
 import urllib.request
 from urllib.parse import urlparse
 from datetime import datetime
+import html as html_module
 
 
 def format_timestamp(timestamp_str):
@@ -32,6 +33,103 @@ def format_timestamp(timestamp_str):
         return dt.strftime('%Y-%m-%d %H:%M:%S')
     except (ValueError, TypeError):
         return timestamp_str
+
+
+def html_to_markdown(html_str):
+    """
+    将 HTML 转换为 Markdown 格式（纯正则实现，无外部依赖）
+
+    Args:
+        html_str: HTML 字符串
+
+    Returns:
+        str: Markdown 格式的文本
+    """
+    text = html_str
+
+    # 移除 style / script / img 标签及其内容
+    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<img[^>]*/?>', '', text, flags=re.IGNORECASE)
+
+    # 标题 h1-h6
+    for i in range(1, 7):
+        prefix = '#' * i
+        text = re.sub(
+            rf'<h{i}[^>]*>(.*?)</h{i}>',
+            lambda m, p=prefix: f'\n\n{p} {re.sub(r"<[^>]+>", "", m.group(1)).strip()}\n\n',
+            text, flags=re.DOTALL | re.IGNORECASE
+        )
+
+    # 引用块 blockquote
+    def convert_blockquote(m):
+        inner = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+        lines = inner.split('\n')
+        return '\n' + '\n'.join('> ' + line.strip() for line in lines if line.strip()) + '\n'
+    text = re.sub(r'<blockquote[^>]*>(.*?)</blockquote>', convert_blockquote, text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 有序列表项 <ol> 内的 <li>
+    def convert_ol(m):
+        items = re.findall(r'<li[^>]*>(.*?)</li>', m.group(1), flags=re.DOTALL | re.IGNORECASE)
+        result = '\n'
+        for idx, item in enumerate(items, 1):
+            item_text = re.sub(r'<[^>]+>', '', item).strip()
+            result += f'{idx}. {item_text}\n'
+        return result + '\n'
+    text = re.sub(r'<ol[^>]*>(.*?)</ol>', convert_ol, text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 无序列表项 <ul> 内的 <li>
+    def convert_ul(m):
+        items = re.findall(r'<li[^>]*>(.*?)</li>', m.group(1), flags=re.DOTALL | re.IGNORECASE)
+        result = '\n'
+        for item in items:
+            item_text = re.sub(r'<[^>]+>', '', item).strip()
+            result += f'- {item_text}\n'
+        return result + '\n'
+    text = re.sub(r'<ul[^>]*>(.*?)</ul>', convert_ul, text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 散落的 <li>（不在 ol/ul 内的）
+    text = re.sub(r'<li[^>]*>(.*?)</li>', lambda m: '- ' + re.sub(r'<[^>]+>', '', m.group(1)).strip() + '\n', text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 加粗 <strong> / <b>
+    text = re.sub(r'<(?:strong|b)[^>]*>(.*?)</(?:strong|b)>', r'**\1**', text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 斜体 <em> / <i>（排除已处理的 publish_time em）
+    text = re.sub(r'<(?:em|i)[^>]*>(.*?)</(?:em|i)>', r'*\1*', text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 链接 <a href="url">text</a>
+    text = re.sub(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', r'[\2](\1)', text, flags=re.DOTALL | re.IGNORECASE)
+
+    # 代码块 <pre><code>
+    text = re.sub(r'<pre[^>]*>\s*<code[^>]*>(.*?)</code>\s*</pre>', r'\n```\n\1\n```\n', text, flags=re.DOTALL | re.IGNORECASE)
+    # 行内代码 <code>
+    text = re.sub(r'<code[^>]*>(.*?)</code>', r'`\1`', text, flags=re.DOTALL | re.IGNORECASE)
+
+    # <br> → 换行
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+
+    # <p> → 段落分隔
+    text = re.sub(r'<p[^>]*>', '\n\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</p>', '', text, flags=re.IGNORECASE)
+
+    # <hr> → 分隔线
+    text = re.sub(r'<hr[^>]*/?>', '\n\n---\n\n', text, flags=re.IGNORECASE)
+
+    # 去除剩余 HTML 标签
+    text = re.sub(r'<[^>]+>', '', text)
+
+    # 解码 HTML 实体
+    text = html_module.unescape(text)
+
+    # 清理多余空白
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r' +', ' ', text)
+    # 清理每行首尾空白
+    lines = [line.strip() for line in text.split('\n')]
+    text = '\n'.join(lines)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
 
 
 def fetch_wechat_article(url):
@@ -92,19 +190,12 @@ def fetch_wechat_article(url):
             if time_match:
                 publish_time = time_match.group(1)
 
-        # 提取正文内容
+        # 提取正文内容并转换为 Markdown
         content_match = re.search(r'<div[^>]*id="js_content"[^>]*>(.*?)</div>\s*</div>\s*<script', html, re.DOTALL)
         if content_match:
-            content_html = content_match.group(1)
-            # 去除 HTML 标签，保留文本
-            content = re.sub(r'<[^>]+>', '', content_html)
-            content = re.sub(r'\n+', '\n', content)  # 合并多余换行
-            content = content.strip()
+            content = html_to_markdown(content_match.group(1))
         else:
             content = ""
-
-        # 提取图片
-        images = re.findall(r'data-src="(https?://[^"]+\.(?:jpg|jpeg|png|gif|webp))"', html)
 
         # 格式化时间戳
         if publish_time:
@@ -114,8 +205,7 @@ def fetch_wechat_article(url):
             "title": title,
             "author": author,
             "publish_time": publish_time,
-            "content": content[:5000],  # 限制内容长度
-            "images": images[:5],  # 最多取 5 张图
+            "content": content,
             "url": url
         }
 
