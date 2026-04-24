@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import argparse
 from pathlib import Path
@@ -31,27 +32,6 @@ FEISHU_CONFIG = {
         "BITABLE": "/bitable/v1"
     }
 }
-
-class FeishuConfigError(Exception):
-    """飞书凭证配置错误"""
-    pass
-
-def check_feishu_config():
-    """检查飞书凭证是否已配置"""
-    if not FEISHU_CONFIG["APP_ID"] or not FEISHU_CONFIG["APP_SECRET"]:
-        skill_dir = Path(__file__).parent.parent
-        env_path = skill_dir / ".env"
-        raise FeishuConfigError(f"""❌ 飞书 API 凭证未配置！
-
-请提供以下凭证：
-  • FEISHU_APP_ID: 飞书应用的 App ID
-  • FEISHU_APP_SECRET: 飞书应用的 App Secret
-
-凭证将保存到: {env_path}
-
-请回复凭证信息，格式如下：
-  APP_ID=cli_xxxxxxxxxxxx
-  APP_SECRET=xxxxxxxxxxxxxxxx""")
 
 class FeishuConfigError(Exception):
     """飞书凭证配置错误"""
@@ -369,8 +349,20 @@ def get_news_list(start_date: str = None, end_date: str = None, debug: bool = Fa
             }
         }
         
+    except FeishuConfigError as e:
+        # 凭证配置错误，直接向 stderr 输出并返回错误
+        print(str(e), file=sys.stderr)
+        return {
+            "code": 500,
+            "msg": str(e),
+            "data": {
+                "items": [],
+                "total": 0,
+                "has_more": False
+            }
+        }
     except Exception as e:
-        print(f"Error fetching news: {str(e)}")
+        print(f"Error fetching news: {str(e)}", file=sys.stderr)
         return {
             "code": 500,
             "msg": str(e),
@@ -450,4 +442,5 @@ if __name__ == "__main__":
             formatted_end_date = end_date.replace('-', '.')
             #print(f"AI Coding资讯周报-{formatted_end_date}\n")
     else:
-        print(f"Error: {result['msg']}") 
+        print(f"Error: {result['msg']}", file=sys.stderr)
+        sys.exit(1)
