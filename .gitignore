@@ -27,6 +27,5 @@ node_modules/
 
 # Temp
 tmp/
-xhs/
-wechat/
+
 .claude/skills/baoyu*
