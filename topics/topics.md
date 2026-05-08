@@ -23,6 +23,7 @@
 - 我是如何使用hermes的，实际使用案例
     * 核心内容: 
     * 状态：plan
-
-
+- 浏览器自动化方案总结
+    * 核心内容: 浏览器自动化方案的优缺点，适合使用的场景，agent-browser，playwright，browser-use等
+    * 状态：plan  
 # Other

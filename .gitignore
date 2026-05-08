@@ -29,3 +29,7 @@ node_modules/
 tmp/
 
 .claude/skills/baoyu*
+.obsidian
+.claudian
+imgs
+*.html
