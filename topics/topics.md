@@ -17,7 +17,7 @@
     * 状态：plan
 
 # Agent
-- hermes：是什么，和openclaw什么区别，为何能自我进化
+- hermes：是什么和openclaw什么区别，为何能自我进化
     * 核心内容: 
     * 状态：plan
 - 我是如何使用hermes的，实际使用案例
