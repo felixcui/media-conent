@@ -24,6 +24,6 @@
     * 核心内容: 
     * 状态：plan
 - 浏览器自动化方案总结
-    * 核心内容: 浏览器自动化方案的优缺点，适合使用的场景，agent-browser，playwright，browser-use等
+    * 核心内容:  浏览器自动化方案的优缺点，适合使用的场景，agent-browser，playwright-mcp，browser-use，Chrome DevTools MCP， opencli等
     * 状态：plan  
 # Other
