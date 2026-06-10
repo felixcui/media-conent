@@ -23,7 +23,15 @@
 - 我是如何使用hermes的，实际使用案例
     * 核心内容: 
     * 状态：plan
-- 浏览器自动化方案总结
+
+# 工具
+- 浏览器自动化方案梳理
     * 核心内容:  浏览器自动化方案的优缺点，适合使用的场景，agent-browser，playwright-mcp，browser-use，Chrome DevTools MCP， opencli等
-    * 状态：plan  
-# Other
+    * 状态：done
+* PPT skill梳理
+* 
+# 应用
+- AI在辅导孩子学习方面的应用
+	- 
+- AI在营销领域的应用
+	- 
