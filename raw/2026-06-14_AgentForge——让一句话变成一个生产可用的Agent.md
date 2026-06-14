@@ -1,0 +1,247 @@
+# AgentForge —— 让一句话变成一个生产可用的 Agent
+
+**作者**: 祁南
+
+**来源**: https://mp.weixin.qq.com/s/6Bs2mLC-o7qiUllx5zJ8xQ
+
+---
+
+## 摘要
+
+AgentForge是一个“Agent工厂”型平台，旨在解决非技术人员、Node及Java开发者在构建Agent时面临的代码门槛高、重复造轮子和技术栈不匹配等痛点。用户只需一句话描述需求，平台即可流式生成包含人设、技能链和工具装备的完整配置。它不仅让非技术人员零代码快速调试并部署具备完整生产闭环的云端Agent，还为Node开发者提供直接上线的全链路企业级部署方案，同时让Java开发者通过HTTP。
+
+---
+
+## 正文
+
+祁南 祁南
+
+在小说阅读器读本章
+
+去阅读
+
+![](https://mmbiz.qpic.cn/mmbiz_jpg/j7RlD5l5q1xpR9sx0FVicZgBVNMIXl0rLzp8iajBvfP6P8zyC6iarc8uf9zR8ZZYAxy3p3ANP0FTkbBDiaPUEItXd96xqeOsY8kPAC35q7EZSkY/640?wx_fmt=jpeg&from=appmsg)
+
+阿里妹导读
+
+文章内容基于作者个人技术实践与独立思考，旨在分享经验，仅代表个人观点。
+
+先看效果
+
+**生产一个线上可运行的云端Agent Team  
+只需1分13秒（73秒）**
+
+### 回归正文：
+
+我们想解决什么
+
+![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1z3Z1OMfxmK5V0Sr3FQaDicyEN2lrbia6ibeicuFsoc36cbJSLFpDcIU5lVv53QbetdX5bJkNrT0Re3VqiaNicmmNBOhEQZk1Py9ia2B0/640?wx_fmt=other&from=appmsg)
+
+我们看到身边四类人，各自卡在不同的地方：
+
+非技术同学有 AI 自动化需求（客服路由、值班播报、行程规划、辩论裁判、研发助理 ……），但他们不写代码、不懂 Prompt 结构、不知道怎么接 MCP、更搞不动容器部署 —— 想法烂在脑子里。
+
+前端 / Node 技术同学虽然能写，但每造一个 Agent 都要从 0 搭一遍：Dockerfile、Aone 容器适配、Egg 启动脚本、调度框架接入、钉钉对接、记忆存储 …… 重复劳动累积起来比写真正的业务逻辑还多。
+
+Java 同学是集团绝对主力，但 Agent 生态都是 Node / Python 系 —— 要么自学一套陌生语言栈，要么自己造一个简陋的 Java Agent 框架（多半半成品）。真正想要的是不碰 Node、不学 Prompt 工程，直接 HTTP 调用一个能跑业务的 Agent。
+
+ALL 我就想玩一下，自己搞个算命助手、模拟辩论法庭、日程安排，Qoderwork私人助手满足不了多人共享，还想让别人玩一下
+
+idealab平台太轻，Agent 框架太重（OpenAI Agents SDK、LangGraph 都要写代码）。我们想把这一段路一次性填上 —— 一边让非技术同学不写代码就能造 Agent，一边给 Node 技术同学一套企业级、可直接部署上生产的全链路 SOP，再让 Java 同学无痛复用完整 Agent 架构。
+
+我们做了什么：AgentForge
+
+AgentForge 是一个「Agent 工厂」型平台 —— 用户一句话描述需求，平台流式生成 Agent 的人设、技能链、工具装备，直接在浏览器里调试对话、配置定时任务、私有化部署到自己的 GitLab 仓库。
+
+![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1zmyPzkd2D0riaQGlucaL1q2S7r9GpAeMV82ziaKh3FmFnopZFW6xcbNsX0Pibf7hnU0ibat09RaBXvxTvjMLR4nOP3tuC0UIoGdyY/640?wx_fmt=other&from=appmsg)
+
+### 对非技术同学：5 分钟出一个真 Loop Agent
+
+1.描述 —— 一句话告诉 AI Builder「我要一个 Agent 能干嘛」
+
+2.生成 —— Builder 流式生成 7 层 Prompt（SOUL / USER / AGENTS / SKILL\_CHAIN / TOOLS / MEMORY ……）+ 自动匹配 Skill 和 MCP 装备
+
+3.写自己的 Skill —— 上传 ZIP 即装，自动校验 + 沙盒预检；非技术同学也能用 Markdown 写一个 Skill 让 Agent 学会新本事
+
+4.调试 —— 同一页面双模切换「装备 ↔ 对话」，改 Prompt 即时见效；带 SSE 事件流可以看每一步路由命中、工具调用、记忆召回
+
+5.云端跑起来 —— 一键部署，云端就是一个搭载他们自己写的 Skill 的真 Loop Agent（不是简单的 Prompt 转发，是带 Function Calling 主循环、记忆召回、工具确认/重试的完整生产闭环）
+
+**对 Node 技术同学：直接拿走、直接上生产**
+
+我们直接搞定了：
+
+●Dockerfile 容器 —— APP-META/docker-config 全套，nodejsctl 标准 start\_app / health\_check / setenv 都齐
+
+●Aone 容器适配 —— 集团 Aone 平台的 node 原生 Agent 教授级落地，AONE\_SCHEMA\_NAME / AONE\_ENV\_SIGN 自动派生 EGG\_SERVER\_ENV，无需运维额外配置
+
+●直接可部署上生产的全链路 SOP —— 从 BUC 鉴权 → MySQL/Redis 配置 → Egg 启动 → migration 自动 apply → 健康检查，每一步都有现成模板可抄
+
+●Anvil Agent 框架 —— 每个派遣出去的 Agent 都基于 Anvil 启动，相当于把平台能力的子集打包成独立可部署的运行时；Anvil-Multi 进一步支持多 Agent 仓库
+
+**对 Java 同学：  
+无痛复用完整 Agent 架构，不碰 Node 一行代码**
+
+Java 同学不需要学 Node、不需要懂 ReAct / Loop / Function Calling 那一套主循环实现，他们眼里的 AgentForge 就是一个 HTTP 服务：
+
+●在浏览器里造一个 Agent（5 分钟，跟非技术同学路径一样）→ 自动得到一个生产可用的 Agent 实例
+
+●三条复用通道任选：
+
+○HTTP API —— POST /api/chat 直接对话，SSE 流式响应；
+
+Java 服务 `RestTemplate` / `WebClient` 就能接
+
+○钉钉机器人 —— 把 Agent 挂到自己业务群，Java 后台跟用户 @ 一下互动，零代码
+
+○MCP 反向调用 —— Java 服务本身可以暴露成 MCP Server 让 Agent 调用，业务方法即工具
+
+●跨 Session 记忆中心化 —— Java 服务多次调用同一 Agent，记忆自动累积，不用自己存上下文
+
+●真正零侵入 —— Java 项目不引一行 Node 依赖、不要 LLM SDK key、不动 Maven pom，等价于把完整 Agent 架构装进了一个 HTTP 端点
+
+集团 Java 服务的常见痛点 ——「我也想加 AI 能力但是不想搭一套 Node 栈」—— 在 AgentForge 这里直接绕过。
+
+**对小团队：单 Agent 自由编排成 Agent 战队**
+
+我们制定了一套 Agent 编排协议 —— 所有 AgentForge 生产的 Agent 都自带统一的对接契约（人设描述 / 能力声明 / 接收消息 / 回传结果），无论是哪个团队、哪个业务域造的，都能被随意拉进同一个 team 里组队作战：
+
+●可视化画布拖拽 —— TeamCanvas 上把任意几个已有 Agent 拖进画布，连一条 handoff 线就组成 Manager + Worker 战队，零代码
+
+●协议化的角色互通 —— 客服 Agent + 行程规划 Agent + 设计师 Agent 可以拼成「旅游业务一站式 team」；研发派单 Agent + 代码评审 Agent + 文档生成 Agent 可以拼成「研发流水线 team」；任意组合
+
+●hub-and-spoke 拓扑 + handoff 路由 —— Manager 拆解任务，按语义路由到最合适的 Worker，Worker 完成后回传 Manager 整合，支持多轮往返
+
+●共享记忆 / 共享 Skill 装备 —— team 内成员共享 namespace 记忆，知识沉淀不重复；每个成员仍保留自己的私有 Skill 不串味
+
+效果：原本各团队各自维护一个 Agent，现在能跨团队拼成更强的复合 Agent，1 + 1 > 2 的能力扩展不再需要重新写代码。
+
+怎么用
+
+正向链路
+
+**STEP1：新建Agnet**
+
+![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1xK2xPOzn9MqCVF0eUmImVelIXOfb7fWutmBSXwKZEBQubfL1MNc8FrVJyHfVGYp0UQ49rpXWdHb5klPFJ3fUsSmWI2ZzBqG8w/640?wx_fmt=other&from=appmsg)
+
+**STEP2：选择SOLO 还是 TEAM**
+
+![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1wpIMa4YmZKIicdkDmHJ1Zw7cibRsOoph9crC3SH6rPmtazibg8G4Az8YUgSyDuHvN5mzgc0rX9xvR6X2KcHpOkRAUGJ6SROh3pc0/640?wx_fmt=other&from=appmsg)
+
+**SPEP3：描述生成初步的  
+系统提示词和推荐SKILL、MCP的草稿**
+
+![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1w5aDbBHysVKpWUchicTQPEWr84NvqMEhtiaXNIcPicic0AJbibSwrk0gicwQl0vd0PvPbaXQ9ab6ptp91XD611R7lkUACIqM068M2Qw/640?wx_fmt=other&from=appmsg)
+
+开始装备你的agent
+
+![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1zvhC3Rolhce6tg75lmDjrNzRxiaibMZjHROyO5KXGHOpVrk1Tg5Z8C6p28wBuMSYJBkZQrZEYNRB9M2AFvBVS40nZ86uhm1jHYg/640?wx_fmt=other&from=appmsg)
+
+![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1zxKa1kk01gmUuTWLmITZux8p9WESB4l27RySicEmIbia16THfm0pM26ZWygTY4qIqNDg2neZAH0IWIKfZ8p46gKtiaDo2AUxVLkg/640?wx_fmt=other&from=appmsg)
+
+**STEP4：开始使用**
+
+![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1wyebgsOVdnJXFMuttkMyHMz8Ribm88C4e5Kic16iagCZaiapbxAx7prJ8ficIgPY5pFicQucFnPesiaj3wP1pgLAmkKh4hEXSicpibAqibM/640?wx_fmt=other&from=appmsg)
+
+配套常用中心化能力
+
+| 关联钉钉 | 定时任务 | 权限管控 |
+| --- | --- | --- |
+| ![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1zgyomJNIW0ibBmDB72fwTvE877zZWWhx1icuXKVEFdVNBcJjiallnAT1AzuOKZ5ktfPsBwZDWIsJHUDQBazP5uuT3f8GB5CArmLI/640?wx_fmt=other&from=appmsg) | ![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1wDjDRBDlYiaF45VnUKicOUWIYicAxbmA7CoiacelH4pWNe1UfTEDEq6YrZcc16ianFDpNNCNU2O43uvZjiaLBUFPhwndBaIMUW1SqKs/640?wx_fmt=other&from=appmsg) | ![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1wWxKp72Rib2k5ITheNU7tuqocg1PdJscLsocYveoiatn1WD0aeos4kZpFXcgsCPwk18rIlc2t0Fw6lA3To8Tdia3DrnKeE104yc8/640?wx_fmt=other&from=appmsg) |
+
+一键私有化部署
+
+![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1zsjqbUSaIFf6Xf1NXq9uIxv1JMO54fTxeEjgGm5QCN9L1sV64GQZGfvugkGBhGSiaeo4o9EduGOtSvMxcQvKCc6hz3IozbjiaS0/640?wx_fmt=other&from=appmsg)
+
+![](https://mmbiz.qpic.cn/sz_mmbiz/j7RlD5l5q1ws6aPeZsSXjHLURK3WRBdJxlSmujL8BdYR8OjYa5pYrsUjSWX30ojib5K4A2Tkdibwib6KejDTdELm4jhWP9olu6aT4oKUPmg2Y0/640?wx_fmt=other&from=appmsg)
+
+我们的核心技术建设
+
+![](https://mmbiz.qpic.cn/mmbiz/j7RlD5l5q1zica2SZ10Za3gJ1EBCfP4b41ldDye6e2ca995HB3mJt6y3U3N9aynB3tcgQKVmXHXX5BvEmvh7iazSO2XibT9oc5LLflrQAPTZrw/640?wx_fmt=other&from=appmsg)
+
+AgentForge 能跑起来不是靠拼接现成轮子，底下是我们自己造的几大独立技术资产：
+
+**fliggy-memory-sdk ——  
+飞猪自研的 mem0**
+
+不是简单接一下 OpenAI Memory / 第三方 SDK，是飞猪自研的、对标 mem0 的 Agent 长期记忆 SDK。完整覆盖 namespace 隔离、catalog 注入、topK 召回、事实抽取、衰减/合并/去重 —— mem0 能做的它都做，并且为集团内业务场景做了深度适配。Agent 跨 Session、跨用户、跨业务域的记忆复用全靠它，是飞猪在 AI 记忆基础设施上的独立技术资产。
+
+**FECHO ——  
+集团 HSF 自动变 MCP 的 MAX AGENT 网关**
+
+集团内成千上万的 HSF（High-Speed Service Framework）服务，过去 Agent 想用只能挨个写适配。FECHO 把集团所有 HSF 服务自动翻译成 MCP 服务 —— 任何 Agent 都能直接调用集团任何 RPC 接口，等于给 AI 时代造了一个统一的「集团服务 → Agent 调用」网关。这是 AgentForge 真正的"上限突破点"：Agent 的能力边界 = 集团服务的全集，而不是几个手工接的 MCP。
+
+**ANVIL / ANVIL MULTI ——  
+真正的 Agent 框架，不是脚手架**
+
+派遣出去的 Agent 不是 LangGraph 包一下、也不是 OpenAI Agents SDK 套个壳 —— 是 ANVIL，自研的单 Agent 运行时框架；多 Agent 场景用 ANVIL MULTI。两套框架在集团 Aone 容器里跑通了从 BUC 鉴权 → 模型调用 → MCP 集成 → 调度触发 → 钉钉对接 → 监控审计的全链路生产闭环。这是真"框架"不是"模板" —— 用户拿到的不是一份要自己改的代码骨架，是一套即装即跑的运行时。
+
+**chatLoop ——  
+自研的 ReAct + Function Calling 主循环**
+
+2200 行核心 + 5 子模块懒加载，类 Hermes / OpenClaw 的 Loop 主循环结构，但每一步都暴露 SSE 事件、工具确认 / 重试 / 跳过 / 历史压缩 / 错误兜底全是标准化 hook 点 —— 中文场景下比直接接 OpenAI Agents SDK 更可控，平台和 ANVIL 框架共用同一份核心。
+
+**7 层 Prompt 模板的权责分离标准**
+
+SOUL / USER / AGENTS / SKILL / SKILL\_CHAIN / TOOLS / MEMORY 各自独立编辑、独立版本、独立复用，比扁平 system prompt 更适合复杂 Agent 的协作演进，也让"AI Builder 生成 → 用户手改 → 平台部署"全链路有标准化锚点。
+
+我们串联了什么
+
+我们把自家造的核心技术资产和集团生态拼成了一张网，让用户在一个浏览器界面里就能用到全部能力：
+
+| 能力维度 | 自研 | 串联的集团生态 |
+| --- | --- | --- |
+| Agent 编排 | 自研编排协议 + TeamCanvas 可视化画布 | —— |
+| Agent 运行时 | ANVIL / ANVIL MULTI（自研框架） | Aone 容器 / nodejsctl |
+| MCP 网关 | FECHO（集团 HSF→MCP 网关） | HSF |
+| Skill 市场 | ali-skills（集团 Skill 仓库 CLI） + 自定义 ZIP 上传体系 | open-aone |
+| 跨 Session 记忆 | fliggy-memory-sdk（飞猪自研 mem0） | —— |
+| 造 Agent 的 Agent | AgentBuilder（造 Agent 的 Agent） | —— |
+| 鉴权 / 部署 / 调度 / IM | 自研多环境一致性 SOP | BUC / Aone GitLab / SchedulerX / 钉钉机器人 |
+
+横向看：自家底座是 ANVIL（框架）+ chatLoop（主循环）+ fliggy-memory-sdk（记忆）+ AgentBuilder（造 Agent 的 Agent）+ TeamCanvas（编排）；集团生态串联的是 FECHO（HSF→MCP 网关）+ ali-skills（Skill 仓库）+ BUC / Aone / SchedulerX / 钉钉。两边拼在同一个浏览器界面里，对用户完全透明 —— 业务同学不用知道下面有这么多层。
+
+我们怎么做的：
+
+把碎片化能力系统化成解决方案
+
+光有自家造的核心技术资产还不够 —— 让它们能长期演化、跨团队复用、零踩坑接入，靠的是一套工程组织哲学：
+
+●Agent 生命周期五阶段标准 —— 生成 → 装备 → 调试 → 部署 → 调度，每一阶段抽象成独立模块 + 标准契约。任何阶段单独迭代（换调度后端、换生成策略、换部署目标）都不破坏其他阶段，整套系统能持续演化而不变成屎山
+
+●多环境一致性工程标准 —— dev / pre / prod 同代码同行为，靠 config.{env}.ts + Aone 派生 `EGG_SERVER_ENV` 自动切换，migration 自动 apply，生产容器零额外配置启动
+
+●DB-first + 文件 fallback 双模存储 —— 生产 RDS 完整持久化，本地零 MySQL 也能跑全套；降级路径在线上线下都被验证过，不是"理论上可用"
+
+●Skill / MCP / Memory 三类扩展点协议化 —— 任何团队按契约写就能扩展（Skill manifest + 5 子模块、MCP 三传输统一封装、Memory namespace + catalog），平台不需要每次都改代码
+
+一句话总结：别人在做"造一个能跑的 Agent"，我们在做"造一套让任何人都能造 Agent 的标准体系" —— 底下有 fliggy-memory-sdk / FECHO / ANVIL 三块自家造的核心技术资产撑着。
+
+我们做出了什么
+
+●平台已稳定运行，平台已私有化部署多个业务线agent
+
+●已沉淀的真实 Agent：客服路由助理 / 研发任务派单 / 辩论赛庭 / 值班播报 / 行程规划 ……
+
+●完整链路打通：BUC 鉴权 / Aone GitLab 部署 / SchedulerX 调度 / 钉钉机器人 / 集团内 MCP 服务
+
+我们想往哪走
+
+短期：把"造一个 Agent"的门槛压到完全不懂技术的业务同学也能上手，目标 5 分钟出首个 Agent。
+
+中期：让 Agent 之间能互相调用，组成更复杂的"Agent 生态" —— 每个团队都有自己的 Anvil 仓库矩阵，业务能力像乐高一样拼出来。
+
+我们相信，下一波生产力解放不来自更强的模型，来自让"造 Agent"这件事变成普通人能完成的事，让"部署 Agent 上生产"这件事变成不需要专门搭一遍轮子的事。AgentForge 是我们交出的第一份答卷。
+
+飞猪-CTO线-用户技术
+
+继续滑动看下一个
+
+阿里云开发者
+
+向上滑动看下一个
+
+微信扫一扫  
+使用小程序
+
+： ， ， ， ， ， ， ， ， ， ， ， ， 。 视频 小程序 赞 ，轻点两下取消赞 在看 ，轻点两下取消在看 分享 留言 收藏 听过
