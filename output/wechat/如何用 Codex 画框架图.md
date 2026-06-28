@@ -1,4 +1,4 @@
-# 用 Codex 快速画框架图：Excalidraw 和飞书画板两种方式
+# 如何用 Codex 画框架图 
 
 写技术文章、做方案汇报时，经常需要一张框架图把思路讲清楚。以前画图要反复拖拽、对齐、改文案，现在可以把这件事交给 Codex：给它资料和目标，它负责生成初稿，我们再做少量调整。
 
@@ -15,17 +15,15 @@
 3. 把要画的内容、链接或说明发给 Codex；
 4. 让 Codex 在 Excalidraw 里生成框架图。
 
-![](../imgs/Codex%20画框架图-20260626145529.png)
+![](../../imgs/Codex%20画框架图-20260626145529.png)
 
-比如，可以让 Codex 基于 Karpathy 的 LLM Wiki 链接画一张框架图：
+比如，可以让 Codex 基于 Karpathy 的 LLM Wiki 内容画一张框架图。
 
-https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
-
-![](../imgs/Codex%20结合excalidraw%20画图-20260626144533.png)
+![](../../imgs/Codex%20结合excalidraw%20画图-20260626144533.png)
 
 生成后，图不是一张“死图”，而是可编辑的 Excalidraw 图形。你可以手动调整布局、修改文字，也可以继续让 Codex 帮你优化结构和视觉效果。
 
-![](../imgs/Codex%20结合excalidraw%20画图-20260626144927.png)
+![](../../imgs/Codex%20结合excalidraw%20画图-20260626144927.png)
 
 ## 方式二：Codex + 飞书画板
 
@@ -33,7 +31,7 @@ https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
 使用方式类似：把需求告诉 Codex，让它在飞书画板中生成框架图。生成后，团队成员可以直接在飞书文档里查看、编辑和补充。
 
-![](../imgs/Codex%20结合excalidraw%20画图-20260626144738.png)
+![](../../imgs/Codex%20结合excalidraw%20画图-20260626144738.png)
 
 生成后的图可以继续自定义修改，也可以让 Codex 根据你的反馈继续调整，比如：
 
@@ -43,7 +41,7 @@ https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 - 强化重点模块；
 - 补充说明文字。
 
-![](../imgs/Codex%20画框架图-20260626150118.png)
+![](../../imgs/Codex%20画框架图-20260626150118.png)
 
 ## 怎么写提示词更稳？
 
