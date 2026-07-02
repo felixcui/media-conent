@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #F4F1E8;
+        color: #121826;
+      }
+      body {
+        font-family: sans-serif;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #F4F1E8;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background-color: #F4F1E8;
+        transform-origin: 50% 50%;
+      }
+      #scene2, #scene3, #scene4, #scene5, #scene6 { opacity: 0; }
+      .paper-noise {
+        position: absolute;
+        inset: 0;
+        opacity: 0.32;
+        background-image:
+          radial-gradient(circle at 20% 18%, rgba(212,85,0,0.16) 0 2px, rgba(244,241,232,0) 2px),
+          radial-gradient(circle at 76% 30%, rgba(47,74,127,0.12) 0 1.5px, rgba(244,241,232,0) 1.5px),
+          linear-gradient(rgba(201,190,168,0.34) 1px, rgba(244,241,232,0) 1px),
+          linear-gradient(90deg, rgba(201,190,168,0.24) 1px, rgba(244,241,232,0) 1px);
+        background-size: 160px 160px, 118px 118px, 84px 84px, 84px 84px;
+      }
+      .glow {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(2px);
+        data-layout-ignore: true;
+      }
+      .glow.orange { background: rgba(212,85,0,0.16); }
+      .glow.blue { background: rgba(47,74,127,0.15); }
+      .glow.teal { background: rgba(15,118,110,0.13); }
+      .ghost {
+        position: absolute;
+        font-family: "JetBrains Mono", monospace;
+        color: rgba(18,24,38,0.075);
+        font-size: 170px;
+        font-weight: 800;
+        letter-spacing: -0.06em;
+        line-height: 0.86;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .ghost::after { content: attr(data-word); }
+      .scene-content {
+        width: 100%;
+        height: 100%;
+        padding: 92px 112px 86px 112px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 48px;
+        position: relative;
+        z-index: 2;
+      }
+      .topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
+        font-family: "JetBrains Mono", monospace;
+        color: #4B5565;
+        font-size: 24px;
+        letter-spacing: 0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        width: fit-content;
+        border: 2px solid #C9BEA8;
+        border-radius: 999px;
+        background: rgba(255,253,246,0.82);
+        padding: 14px 24px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 22px;
+        color: #2F4A7F;
+        box-shadow: 0 14px 40px rgba(101,77,36,0.08);
+      }
+      .tag::before {
+        content: "";
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #D45500;
+        box-shadow: 0 0 0 7px rgba(212,85,0,0.14);
+      }
+      .title {
+        font-family: serif;
+        font-size: 112px;
+        line-height: 0.96;
+        letter-spacing: -0.055em;
+        font-weight: 900;
+        max-width: 1060px;
+      }
+      .title.large { font-size: 132px; max-width: 1180px; }
+      .subtitle {
+        color: #4B5565;
+        font-size: 36px;
+        line-height: 1.45;
+        font-weight: 420;
+        max-width: 860px;
+      }
+      .accent { color: #D45500; }
+      .blue { color: #2F4A7F; }
+      .teal { color: #0F766E; }
+      .panel {
+        background: rgba(255,253,246,0.90);
+        border: 2px solid #C9BEA8;
+        border-radius: 40px;
+        box-shadow: 0 34px 90px rgba(87,64,35,0.18);
+      }
+      .image-card {
+        position: relative;
+        padding: 16px;
+        background: #FFFDF6;
+        border: 2px solid #C9BEA8;
+        border-radius: 40px;
+        box-shadow: 0 36px 96px rgba(47,37,22,0.20);
+        overflow: hidden;
+      }
+      .image-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 26px;
+        display: block;
+      }
+      .image-caption {
+        position: absolute;
+        left: 34px;
+        bottom: 34px;
+        padding: 14px 22px;
+        border-radius: 999px;
+        background: rgba(18,24,38,0.78);
+        color: #FFFDF6;
+        font-size: 24px;
+        font-weight: 760;
+      }
+      .rule {
+        height: 3px;
+        width: 100%;
+        background: #C9BEA8;
+        transform-origin: left center;
+      }
+      .card-row { display: flex; gap: 28px; align-items: stretch; }
+      .mini-card {
+        padding: 34px 36px;
+        border-radius: 34px;
+        background: rgba(255,253,246,0.88);
+        border: 2px solid #C9BEA8;
+        box-shadow: 0 24px 64px rgba(87,64,35,0.12);
+      }
+      .mini-card .kicker {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 20px;
+        color: #D45500;
+        margin-bottom: 18px;
+        font-variant-numeric: tabular-nums;
+      }
+      .mini-card .card-title {
+        font-size: 48px;
+        font-weight: 860;
+        line-height: 1.06;
+        margin-bottom: 16px;
+      }
+      .mini-card .card-text {
+        font-size: 29px;
+        color: #4B5565;
+        line-height: 1.38;
+      }
+      .micro {
+        font-family: "JetBrains Mono", monospace;
+        color: #4B5565;
+        font-size: 21px;
+        letter-spacing: 0.04em;
+      }
+      .split { display: grid; grid-template-columns: 1fr 0.92fr; gap: 72px; align-items: center; flex: 1; }
+      .steps { display: flex; flex-direction: column; gap: 20px; }
+      .step {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        align-items: center;
+        gap: 22px;
+        padding: 22px 26px;
+        border-radius: 28px;
+        background: rgba(255,253,246,0.78);
+        border: 2px solid rgba(201,190,168,0.85);
+      }
+      .step-number {
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        border-radius: 22px;
+        background: #2F4A7F;
+        color: #FFFDF6;
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 800;
+        font-size: 30px;
+      }
+      .step-text { font-size: 32px; font-weight: 760; }
+      .flow-board {
+        position: relative;
+        flex: 1;
+        min-height: 700px;
+        border-radius: 44px;
+        border: 2px solid #C9BEA8;
+        background: rgba(255,253,246,0.78);
+        box-shadow: inset 0 0 0 1px rgba(255,253,246,0.8), 0 34px 88px rgba(87,64,35,0.13);
+        overflow: hidden;
+      }
+      .node {
+        position: absolute;
+        width: 280px;
+        padding: 26px 28px;
+        border-radius: 34px;
+        background: #FFFDF6;
+        border: 3px solid #C9BEA8;
+        box-shadow: 0 22px 54px rgba(67,49,28,0.14);
+      }
+      .node .node-title { font-size: 42px; font-weight: 870; margin-bottom: 8px; }
+      .node .node-text { font-size: 24px; color: #4B5565; line-height: 1.35; }
+      .node::before {
+        content: "";
+        display: block;
+        width: 40px;
+        height: 10px;
+        border-radius: 999px;
+        background: #D45500;
+        margin-bottom: 20px;
+      }
+      .flow-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+      .prompt-box {
+        padding: 46px 54px;
+        border-radius: 40px;
+        font-size: 38px;
+        line-height: 1.55;
+        max-width: 1040px;
+        background: #FFFDF6;
+        border: 3px solid #C9BEA8;
+        box-shadow: 0 36px 88px rgba(87,64,35,0.16);
+      }
+      .decision {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+      }
+      .choice {
+        padding: 36px 38px;
+        border-radius: 36px;
+        background: rgba(255,253,246,0.88);
+        border: 2px solid #C9BEA8;
+      }
+      .choice strong { display: block; font-size: 44px; margin-bottom: 12px; }
+      .choice span { color: #4B5565; font-size: 30px; line-height: 1.35; }
+      .transition-wash {
+        position: absolute;
+        inset: -12%;
+        z-index: 20;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(circle at 50% 50%, rgba(228,182,73,0.64), rgba(244,241,232,0.12) 44%, rgba(244,241,232,0) 72%);
+        filter: blur(20px);
+      }
+      #scene1 .hero-layout { display: grid; grid-template-columns: 1.03fr 0.97fr; gap: 76px; align-items: center; flex: 1; }
+      #hero-shot { width: 760px; height: 382px; transform: rotate(-2.2deg); }
+      #scene1 .note { padding: 38px 42px; max-width: 690px; font-size: 32px; line-height: 1.45; }
+      #scene2 .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; align-items: stretch; flex: 1; }
+      #scene2 .compare-card { padding: 58px; min-height: 560px; position: relative; overflow: hidden; }
+      #scene2 .compare-card h3 { font-size: 86px; font-family: serif; line-height: 0.95; letter-spacing: -0.05em; margin-bottom: 34px; }
+      #scene2 .compare-card p { font-size: 36px; line-height: 1.45; color: #4B5565; max-width: 620px; }
+      #scene2 .compare-card .stamp { position: absolute; right: 36px; bottom: 34px; font-family: "JetBrains Mono", monospace; font-size: 22px; color: #D45500; }
+      #scene3 .scene-content { justify-content: flex-start; }
+      #scene3 .ex-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 62px; align-items: center; flex: 1; }
+      #ex-shot { width: 1030px; height: 520px; transform: rotate(1.1deg); }
+      #scene4 .scene-content { gap: 34px; }
+      #scene5 .team-layout { display: grid; grid-template-columns: 0.96fr 1.04fr; gap: 64px; align-items: center; flex: 1; }
+      #team-shot { width: 760px; height: 660px; transform: rotate(-1.4deg); }
+      #scene6 .scene-content { justify-content: center; gap: 46px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="34" data-width="1920" data-height="1080">
+      <div id="scene1" class="scene">
+        <div class="paper-noise" data-layout-ignore></div>
+        <div class="glow orange" data-layout-ignore style="width:560px;height:560px;left:-170px;top:120px"></div>
+        <div class="glow blue" data-layout-ignore style="width:680px;height:680px;right:-240px;bottom:-230px"></div>
+        <div class="ghost" data-layout-ignore data-word="PROMPT" data-word="FEISHU" data-word="STRUCTURE" data-word="EXCALIDRAW" data-word="DRAG → DRAFT" data-word="FRAME" style="left:920px;top:48px"></div>
+        <div class="scene-content">
+          <div class="topline"><span>CODEx / DIAGRAM / 01</span><span>34S EXPLAINER</span></div>
+          <div class="hero-layout">
+            <div>
+              <div class="tag s1-el">文章转视频 · 框架图工作流</div>
+              <h1 class="title large s1-el" style="margin-top:42px">如何用 Codex 画框架图</h1>
+              <p class="subtitle s1-el" style="margin-top:32px">写技术文章、做方案汇报时，先让 Codex 把结构画出来，人再判断重点、删减细节、调整表达。</p>
+              <div class="panel note s1-el" style="margin-top:44px"><span class="accent">关键不是替代审美</span>，而是快速得到一张能改、能讨论、能沉淀的初稿。</div>
+            </div>
+            <div>
+              <div id="hero-shot" class="image-card s1-el">
+                <img src="assets/01-codex-sidebar.png" alt="Codex side panel" />
+                <div class="image-caption">一句需求 → 结构初稿</div>
+              </div>
+              <div class="micro s1-el" style="margin-top:30px">資料 + 目標 + Codex = editable first draft</div>
+            </div>
+          </div>
+          <div class="rule s1-rule"></div>
+        </div>
+      </div>
+
+      <div id="scene2" class="scene">
+        <div class="paper-noise" data-layout-ignore></div>
+        <div class="glow teal" data-layout-ignore style="width:580px;height:580px;left:1040px;top:-190px"></div>
+        <div class="ghost" data-layout-ignore style="left:80px;bottom:20px"></div>
+        <div class="scene-content">
+          <div class="topline"><span>PROBLEM / BEFORE-AFTER</span><span>NO MORE ALIGNING BOXES</span></div>
+          <div>
+            <div class="tag s2-el">为什么值得做</div>
+            <h2 class="title s2-el" style="margin-top:28px">少拖拽，多表达。</h2>
+          </div>
+          <div class="compare">
+            <div class="compare-card panel s2-el">
+              <h3>以前</h3>
+              <p>拖拽、对齐、改文案，图还没画完，思路已经被工具细节打断。</p>
+              <div class="stamp">MANUAL / SLOW</div>
+            </div>
+            <div class="compare-card panel s2-el">
+              <h3><span class="blue">现在</span></h3>
+              <p>把资料、链接和目标发给 Codex，先生成一版可编辑框架图。</p>
+              <div class="stamp">CODEX / FIRST DRAFT</div>
+            </div>
+          </div>
+          <div class="rule s2-rule"></div>
+        </div>
+      </div>
+
+      <div id="scene3" class="scene">
+        <div class="paper-noise" data-layout-ignore></div>
+        <div class="glow orange" data-layout-ignore style="width:620px;height:620px;right:-170px;top:260px"></div>
+        <div class="ghost" data-layout-ignore style="right:34px;top:42px"></div>
+        <div class="scene-content">
+          <div class="topline"><span>METHOD 01 / PERSONAL SKETCH</span><span>WEB CANVAS</span></div>
+          <div class="ex-layout">
+            <div>
+              <div class="tag s3-el">方式一 · Codex + Excalidraw</div>
+              <h2 class="title s3-el" style="margin-top:34px">个人梳理，先画草图。</h2>
+              <p class="subtitle s3-el" style="margin-top:28px">适合个人梳理、技术草图、文章配图。轻量、自由，生成后还可以继续编辑。</p>
+              <div class="card-row" style="margin-top:38px">
+                <div class="mini-card s3-el" style="width:250px"><div class="kicker">01</div><div class="card-title">轻量</div><div class="card-text">打开网页就能起稿。</div></div>
+                <div class="mini-card s3-el" style="width:250px"><div class="kicker">02</div><div class="card-title">自由</div><div class="card-text">适合草图和文章图。</div></div>
+                <div class="mini-card s3-el" style="width:250px"><div class="kicker">03</div><div class="card-title">能改</div><div class="card-text">不是死图。</div></div>
+              </div>
+            </div>
+            <div id="ex-shot" class="image-card s3-el">
+              <img src="assets/02-excalidraw-karpathy.png" alt="Excalidraw diagram" />
+              <div class="image-caption">资料 → LLM 框架图</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene4" class="scene">
+        <div class="paper-noise" data-layout-ignore></div>
+        <div class="glow blue" data-layout-ignore style="width:650px;height:650px;left:-150px;bottom:-200px"></div>
+        <div class="ghost" data-layout-ignore style="left:70px;top:42px"></div>
+        <div class="scene-content">
+          <div class="topline"><span>PROCESS / CORE LOOP</span><span>EXTRACT BEFORE DRAWING</span></div>
+          <div>
+            <div class="tag s4-el">更稳的顺序</div>
+            <h2 class="title s4-el" style="margin-top:28px">先提炼，再画图。</h2>
+          </div>
+          <div class="flow-board s4-el">
+            <svg class="flow-svg" viewBox="0 0 1696 700">
+              <path id="line-a" d="M260 190 C500 70 760 90 1040 205" fill="none" stroke="#2F4A7F" stroke-width="10" stroke-linecap="round" stroke-dasharray="900" stroke-dashoffset="900" />
+              <path id="line-b" d="M1160 270 C990 470 690 505 410 405" fill="none" stroke="#0F766E" stroke-width="10" stroke-linecap="round" stroke-dasharray="920" stroke-dashoffset="920" />
+              <path id="line-c" d="M520 515 C790 645 1110 585 1340 390" fill="none" stroke="#D45500" stroke-width="10" stroke-linecap="round" stroke-dasharray="880" stroke-dashoffset="880" />
+            </svg>
+            <div class="node s4-node" style="left:110px;top:105px"><div class="node-title">资料</div><div class="node-text">文章、链接、说明先进入工作区</div></div>
+            <div class="node s4-node" style="right:330px;top:120px"><div class="node-title">提炼</div><div class="node-text">抓核心概念和层级关系</div></div>
+            <div class="node s4-node" style="left:360px;bottom:88px"><div class="node-title">生成</div><div class="node-text">输出可编辑框架图初稿</div></div>
+            <div class="node s4-node" style="right:130px;bottom:130px"><div class="node-title">调整</div><div class="node-text">删减细节，强化重点模块</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene5" class="scene">
+        <div class="paper-noise" data-layout-ignore></div>
+        <div class="glow teal" data-layout-ignore style="width:640px;height:640px;right:-120px;bottom:-210px"></div>
+        <div class="ghost" data-layout-ignore style="left:760px;top:54px"></div>
+        <div class="scene-content">
+          <div class="topline"><span>METHOD 02 / TEAM BOARD</span><span>COLLABORATIVE CANVAS</span></div>
+          <div class="team-layout">
+            <div id="team-shot" class="image-card s5-el">
+              <img src="assets/04-feishu-board.png" alt="Feishu board" />
+              <div class="image-caption">团队可查看、编辑、补充</div>
+            </div>
+            <div>
+              <div class="tag s5-el">方式二 · Codex + 飞书画板</div>
+              <h2 class="title s5-el" style="margin-top:34px">团队协作，放进文档。</h2>
+              <p class="subtitle s5-el" style="margin-top:28px">如果框架图最终要进入团队文档，或者需要多人协作修改，飞书画板更合适。</p>
+              <div class="steps" style="margin-top:42px">
+                <div class="step s5-el"><div class="step-number">A</div><div class="step-text">精简层级</div></div>
+                <div class="step s5-el"><div class="step-number">B</div><div class="step-text">调整模块关系</div></div>
+                <div class="step s5-el"><div class="step-number">C</div><div class="step-text">补充说明文字</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene6" class="scene">
+        <div class="paper-noise" data-layout-ignore></div>
+        <div class="glow orange" data-layout-ignore style="width:600px;height:600px;left:-180px;top:250px"></div>
+        <div class="glow blue" data-layout-ignore style="width:680px;height:680px;right:-190px;top:-220px"></div>
+        <div class="ghost" data-layout-ignore style="left:72px;bottom:20px"></div>
+        <div class="scene-content">
+          <div class="topline"><span>PROMPT / DECISION RULE</span><span>FINAL FRAME</span></div>
+          <div>
+            <div class="tag s6-el">提示词模板</div>
+            <h2 class="title s6-el" style="margin-top:28px">这样说，更稳。</h2>
+          </div>
+          <div class="prompt-box s6-el">请根据以下资料，画一张适合技术文章使用的框架图。要求结构清晰、层级分明、文字简洁，突出核心模块和它们之间的关系。生成后保持可编辑。</div>
+          <div class="decision">
+            <div class="choice s6-el"><strong class="blue">个人草图</strong><span>用 Excalidraw：轻量、自由、适合快速起稿。</span></div>
+            <div class="choice s6-el"><strong class="teal">团队沉淀</strong><span>用飞书画板：进入文档，方便多人协作修改。</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="transition-wash" id="transitionWash"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const wash = "#transitionWash";
+
+      function has(selector) {
+        return document.querySelector(selector) !== null;
+      }
+      function fromToIf(selector, fromVars, toVars, at) {
+        if (has(selector)) {
+          tl.fromTo(selector, fromVars, Object.assign({ immediateRender: false }, toVars), at);
+        }
+      }
+      function enterScene(prefix, start) {
+        fromToIf(prefix + " .tag", { opacity: 0, x: -54, scale: 0.96 }, { opacity: 1, x: 0, scale: 1, duration: 0.62, ease: "expo.out" }, start + 0.18);
+        fromToIf(prefix + " .title", { opacity: 0, y: 70, letterSpacing: "-0.02em" }, { opacity: 1, y: 0, letterSpacing: "-0.055em", duration: 0.78, ease: "power4.out" }, start + 0.34);
+        fromToIf(prefix + " .subtitle", { opacity: 0, x: -42 }, { opacity: 1, x: 0, duration: 0.55, ease: "power2.out" }, start + 0.62);
+        fromToIf(prefix + " .topline", { opacity: 0, y: -24 }, { opacity: 1, y: 0, duration: 0.45, ease: "sine.out" }, start + 0.12);
+        fromToIf(prefix + " .rule", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.72, ease: "power3.out" }, start + 0.92);
+      }
+
+      function transition(from, to, t, mode) {
+        tl.set(to, { opacity: 1, zIndex: 2, scale: mode === "zoom" ? 0.92 : 1, x: mode === "push" ? 150 : 0, filter: "blur(18px)" }, t);
+        tl.set(from, { zIndex: 3 }, t);
+        tl.to(wash, { opacity: 1, scale: 1.06, duration: 0.28, ease: "power2.out" }, t);
+        tl.to(from, { scale: mode === "zoom" ? 1.08 : 1.025, x: mode === "push" ? -170 : 0, filter: "blur(18px)", duration: 0.52, ease: "power2.inOut" }, t);
+        tl.to(to, { scale: 1, x: 0, filter: "blur(0px)", duration: 0.62, ease: "power3.out" }, t + 0.08);
+        tl.to(wash, { opacity: 0, scale: 1.24, duration: 0.34, ease: "sine.out" }, t + 0.28);
+        tl.set(from, { opacity: 0, zIndex: 1, scale: 1, x: 0, filter: "blur(0px)" }, t + 0.66);
+        tl.set(to, { zIndex: 1 }, t + 0.68);
+      }
+
+      enterScene("#scene1", 0);
+      tl.fromTo("#hero-shot", { opacity: 0, y: 78, rotation: -5, scale: 0.92 }, { opacity: 1, y: 0, rotation: -2.2, scale: 1, duration: 0.9, ease: "back.out(1.35)" }, 0.78);
+      tl.fromTo("#scene1 .note", { opacity: 0, y: 44, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.62, ease: "circ.out" }, 1.05);
+      tl.fromTo("#scene1 .micro", { opacity: 0, x: 42 }, { opacity: 1, x: 0, duration: 0.52, ease: "power2.out" }, 1.24);
+      tl.to("#scene1 .glow", { scale: 1.08, x: 18, y: -12, duration: 2.3, yoyo: true, repeat: 2, ease: "sine.inOut" }, 0.3);
+      tl.to("#hero-shot img", { scale: 1.045, duration: 4.2, ease: "none" }, 0.9);
+
+      transition("#scene1", "#scene2", 4.8, "push");
+      enterScene("#scene2", 5.0);
+      tl.fromTo("#scene2 .compare-card", { opacity: 0, y: 70, rotation: -2 }, { opacity: 1, y: 0, rotation: 0, duration: 0.72, stagger: 0.16, ease: "power3.out" }, 5.78);
+      tl.fromTo("#scene2 .stamp", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.42, stagger: 0.14, ease: "back.out(1.8)" }, 6.45);
+      tl.to("#scene2 .glow", { scale: 1.12, x: -28, y: 20, duration: 2.1, yoyo: true, repeat: 2, ease: "sine.inOut" }, 5.1);
+
+      transition("#scene2", "#scene3", 10.1, "push");
+      enterScene("#scene3", 10.3);
+      tl.fromTo("#scene3 .mini-card", { opacity: 0, y: 60, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.52, stagger: 0.11, ease: "back.out(1.45)" }, 11.25);
+      tl.fromTo("#ex-shot", { opacity: 0, x: 90, rotation: 4.5, scale: 0.94 }, { opacity: 1, x: 0, rotation: 1.1, scale: 1, duration: 0.82, ease: "expo.out" }, 11.0);
+      tl.to("#ex-shot img", { scale: 1.055, duration: 4.2, ease: "none" }, 11.1);
+      tl.to("#scene3 .glow", { scale: 1.1, x: -30, duration: 2.4, yoyo: true, repeat: 2, ease: "sine.inOut" }, 10.5);
+
+      transition("#scene3", "#scene4", 15.5, "zoom");
+      enterScene("#scene4", 15.75);
+      tl.fromTo("#scene4 .flow-board", { opacity: 0, y: 65, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.72, ease: "power4.out" }, 16.55);
+      tl.fromTo("#scene4 .s4-node", { opacity: 0, scale: 0.78, y: 42 }, { opacity: 1, scale: 1, y: 0, duration: 0.56, stagger: 0.16, ease: "back.out(1.65)" }, 16.92);
+      tl.to("#line-a", { strokeDashoffset: 0, duration: 0.82, ease: "power2.out" }, 17.2);
+      tl.to("#line-b", { strokeDashoffset: 0, duration: 0.78, ease: "power3.out" }, 17.62);
+      tl.to("#line-c", { strokeDashoffset: 0, duration: 0.72, ease: "circ.out" }, 18.08);
+      tl.to("#scene4 .glow", { scale: 1.14, y: -26, duration: 2.2, yoyo: true, repeat: 2, ease: "sine.inOut" }, 15.9);
+
+      transition("#scene4", "#scene5", 21.5, "push");
+      enterScene("#scene5", 21.72);
+      tl.fromTo("#team-shot", { opacity: 0, x: -90, rotation: -5, scale: 0.94 }, { opacity: 1, x: 0, rotation: -1.4, scale: 1, duration: 0.82, ease: "expo.out" }, 22.36);
+      tl.fromTo("#scene5 .step", { opacity: 0, x: 70, scale: 0.94 }, { opacity: 1, x: 0, scale: 1, duration: 0.5, stagger: 0.13, ease: "power3.out" }, 23.15);
+      tl.to("#team-shot img", { scale: 1.05, duration: 4.4, ease: "none" }, 22.45);
+      tl.to("#scene5 .glow", { scale: 1.08, x: -18, y: -16, duration: 2.0, yoyo: true, repeat: 3, ease: "sine.inOut" }, 21.9);
+
+      transition("#scene5", "#scene6", 27.2, "zoom");
+      enterScene("#scene6", 27.45);
+      tl.fromTo("#scene6 .prompt-box", { opacity: 0, y: 70, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.76, ease: "power4.out" }, 28.28);
+      tl.fromTo("#scene6 .choice", { opacity: 0, y: 58, rotation: -1.5 }, { opacity: 1, y: 0, rotation: 0, duration: 0.6, stagger: 0.16, ease: "back.out(1.4)" }, 29.25);
+      tl.to("#scene6 .glow", { scale: 1.12, x: 18, y: -14, duration: 2.3, yoyo: true, repeat: 2, ease: "sine.inOut" }, 27.7);
+      tl.to("#scene6 .scene-content", { opacity: 0, y: -28, duration: 0.6, ease: "power2.in" }, 33.2);
+      tl.to("#scene6", { backgroundColor: "#EDE7D9", duration: 0.6, ease: "sine.inOut" }, 33.2);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
