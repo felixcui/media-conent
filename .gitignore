@@ -34,3 +34,8 @@ tmp/
 imgs
 .html
 .antigravitycli
+
+output/video
+videos
+.workbuddy
+.claude
