@@ -21,6 +21,8 @@ node_modules/
 
 # Environment variables
 .env
+.venv_xhs
+.opencode
 
 # Logs and databases
 *.log
@@ -36,7 +38,7 @@ imgs
 .antigravitycli
 
 output/video
-videos
+video
 .workbuddy
 .claude
 knowledge
