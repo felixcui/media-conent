@@ -42,3 +42,8 @@ video
 .workbuddy
 .claude
 knowledge
+
+# 播客原始素材：音频体积大，不入库；同目录的 md 摘要正常入库（html 快照与 shownotes 用完即删）
+raw/xiaoyuzhou/*.m4a
+raw/xiaoyuzhou/*.mp3
+raw/xiaoyuzhou/*.wav
