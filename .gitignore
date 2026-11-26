@@ -47,3 +47,14 @@ knowledge
 raw/xiaoyuzhou/*.m4a
 raw/xiaoyuzhou/*.mp3
 raw/xiaoyuzhou/*.wav
+
+# 公众号监控：本地配置与运行状态不入库
+tools/wechat-monitor/config.json
+tools/wechat-monitor/seen.db
+tools/wechat-monitor/*.log
+tools/wechat-monitor/*.json.tmp
+tools/wechat-monitor/__pycache__/
+
+# 微信读书监控服务：运行数据（含 Cookie）不入库
+tools/weread-service/data/
+tools/weread-service/__pycache__/
