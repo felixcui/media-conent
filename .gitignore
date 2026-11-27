@@ -58,3 +58,6 @@ tools/wechat-monitor/__pycache__/
 # 微信读书监控服务：运行数据（含 Cookie）不入库
 tools/weread-service/data/
 tools/weread-service/__pycache__/
+
+# 临时登录二维码
+auth_qr.png
